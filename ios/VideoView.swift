@@ -75,7 +75,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   // MARK: - lifecycle
   
   func playVideo() {
-    guard let url = url else {
+    guard let url = url, self.player == nil else {
       return
     }
     
@@ -96,34 +96,25 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     // Get a new player to use
     let player = PlayerManager.shared.dequeuePlayer()
     
-    // Get the player item and add it to the player
-    let playerItem = AVPlayerItem(url: url)
-    playerItem.preferredForwardBufferDuration = 5
-    player.replaceCurrentItem(with: playerItem)
-    
     // Add observers to the player
     self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
     
-    // Add observers to the player item
-    self.addObserversToPlayerItem(playerItem)
-
+    // Get the player item and add it to the player
+    DispatchQueue.global(qos: .background).async { [weak self] in
+      let playerItem = AVPlayerItem(url: url)
+      playerItem.preferredForwardBufferDuration = 5
+      
+      DispatchQueue.main.async {
+        player.replaceCurrentItem(with: playerItem)
+        self?.addObserversToPlayerItem(playerItem)
+      }
+    }
 
     pViewController.player = player
     self.addSubview(pViewController.view)
     
     self.pViewController = pViewController
     self.player = player
-    
-    // Hack for now, it doesn't seem like the item will want to play immediately if it's already cached.
-    // Probably a better way to handle this in the future, but let's not get stuck on this
-    // Note that this won't get picked up by the observer since it isn't
-    // a change in the status property
-    if playerItem.status == .readyToPlay {
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { [weak self] in
-        self?.isLoading = false
-        self?.play()
-      }
-    }
   }
   
   func removeVideo() {
