@@ -1,14 +1,23 @@
 package expo.modules.blueskyvideo
 
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import androidx.media3.common.util.UnstableApi
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import kotlinx.coroutines.launch
 
+@UnstableApi
 class BlueskyVideoModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("BlueskyVideo")
 
-    AsyncFunction("updateActiveVideoViewAsync") { value: String ->
+    AsyncFunction("updateActiveVideoViewAsync") {
+      val handler = Handler(Looper.getMainLooper())
+      handler.post {
+        ViewManager.updateActiveView()
+      }
     }
 
     View(BlueskyVideoView::class) {

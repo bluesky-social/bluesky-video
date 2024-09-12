@@ -1,17 +1,20 @@
 package expo.modules.blueskyvideo
 
 import android.content.Context
-import android.content.Intent
+import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
-import android.os.Build
+import android.view.ViewGroup
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
+import expo.modules.video.ProgressTracker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
@@ -21,8 +24,8 @@ import kotlinx.coroutines.launch
 @UnstableApi
 class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
   private val playerScope = CoroutineScope(Job() + Dispatchers.Main)
-  private var player: ExoPlayer? = null
-  private var playerView: PlayerView? = null
+  private val playerView: PlayerView
+  private var progressTracker: ProgressTracker? = null
 
   var url: Uri? = null
 
@@ -72,59 +75,70 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
   val onMutedChange by EventDispatcher()
   val onError by EventDispatcher()
 
-  fun playVideo() {
-    if (url == null || player != null) {
-      return
+  init {
+    val playerView = PlayerView(context).apply {
+      setShowSubtitleButton(true)
+      setShowNextButton(true)
+      setShowPreviousButton(true)
+      resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+      useController = true
+      layoutParams = ViewGroup.LayoutParams(
+        LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
+      )
+      setBackgroundColor(Color.BLACK)
     }
-
-    val player = PlayerManager(context).dequeuePlayer()
-    val playerView = PlayerView(context)
-    playerView.setShowSubtitleButton(true)
-    playerView.setShowNextButton(false)
-    playerView.setShowPreviousButton(false)
     this.addView(playerView)
-
-    playerScope.launch {
-      val mediaItem = createMediaItem()
-      player.setMediaItem(mediaItem)
-      player.prepare()
-
-      playerView.player = player
-      player.playWhenReady = autoplay
-    }
-
-    this.player = player
     this.playerView = playerView
   }
 
-  fun removeVideo() {
-    val player = this.player ?: return
-    val playerView = this.playerView ?: return
+  // Lifecycle
+
+  private fun playVideo() {
+    if (this.playerView.player != null) {
+      return
+    }
+
+    val player = this.createExoPlayer()
+    this.playerView.player = player
+
+    playerScope.launch {
+      Log.d("BlueskyVideoView", "Creating media item")
+      val mediaItem = createMediaItem()
+      player.setMediaItem(mediaItem)
+      player.prepare()
+      Log.d("BlueskyVideoView", "Player prepared")
+      player.playWhenReady = autoplay
+    }
+
+    this.progressTracker = ProgressTracker(player, onTimeRemainingChange)
+  }
+
+  private fun removeVideo() {
+    val player = this.playerView.player ?: return
 
     this.mute()
     this.pause()
     this.isLoading = true
 
-    playerScope.launch {
-      player.stop()
-      player.release()
-      PlayerManager(context).recyclePlayer(player)
-      this@BlueskyVideoView.removeView(playerView)
-      this@BlueskyVideoView.player = null
-      this@BlueskyVideoView.playerView = null
-      this@BlueskyVideoView.isLoading = false
-    }
+    this.progressTracker?.remove()
+    this.progressTracker = null
+
+    player.release()
+    this.playerView.player = null
+    this.isLoading = false
   }
 
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
-    ViewManager().addView(this)
+    ViewManager.addView(this)
   }
 
   override fun onDetachedFromWindow() {
     super.onDetachedFromWindow()
-    ViewManager().removeView(this)
+    ViewManager.removeView(this)
   }
+
+  // Controls
 
   private fun play() {
     this.isPlaying = true
@@ -212,11 +226,23 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
     return visibleArea >= 0.5 * totalArea
   }
 
-  suspend fun createMediaItem(): MediaItem {
+  private suspend fun createMediaItem(): MediaItem {
     return withContext(Dispatchers.IO) {
       MediaItem.Builder()
         .setUri(url.toString())
         .build()
     }
+  }
+
+  private fun createExoPlayer(): ExoPlayer {
+    return ExoPlayer.Builder(context)
+      .apply {
+        setLooper(context.mainLooper)
+        setSeekForwardIncrementMs(5000)
+        setSeekBackIncrementMs(5000)
+      }
+      .build().apply {
+        repeatMode = ExoPlayer.REPEAT_MODE_ALL
+      }
   }
 }

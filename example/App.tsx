@@ -45,7 +45,7 @@ function Player({url}: {url: string}) {
   }
 
   return (
-    <Pressable style={{backgroundColor: 'blue', height: 300}} onPress={onPress}>
+    <View style={{backgroundColor: 'blue', height: 300}}>
       <BlueskyVideoView
         url={url}
         autoplay
@@ -60,6 +60,6 @@ function Player({url}: {url: string}) {
           console.log('timeRemaining', e.nativeEvent.timeRemaining)
         }}
       />
-    </Pressable>
+    </View>
   )
 }
