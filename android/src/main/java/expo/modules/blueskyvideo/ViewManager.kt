@@ -1,7 +1,6 @@
 package expo.modules.blueskyvideo
 
 import android.graphics.Rect
-import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 
 @UnstableApi
@@ -13,7 +12,6 @@ class ViewManager {
 
     fun addView(view: BlueskyVideoView) {
       views.add(view)
-      Log.d("BlueskyVideoView", "Adding view $views")
       if (prevCount == 0) {
         this.updateActiveView()
       }
@@ -26,10 +24,8 @@ class ViewManager {
     }
 
     fun updateActiveView() {
-      Log.d("BlueskyVideoView", "Updating active view")
       var activeView: BlueskyVideoView? = null
       val count = views.count()
-      Log.d("BlueskyVideoView", "Count: $count")
 
       if (count == 1) {
         val view = views.first()
