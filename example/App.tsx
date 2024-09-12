@@ -43,7 +43,7 @@ function Player({url}: {url: string}) {
 
   const onPress = () => {
     console.log('press')
-    ref.current?.togglePlayback()
+    ref.current?.enterFullscreen()
   }
 
   return (

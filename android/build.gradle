@@ -44,7 +44,9 @@ android {
 
 
 dependencies {
-  // Remember to keep this in sync with the version in `expo-audio`
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+
+    // Remember to keep this in sync with the version in `expo-audio`
   def androidxMedia3Version = "1.4.0"
   implementation "androidx.media3:media3-session:${androidxMedia3Version}"
   implementation "androidx.media3:media3-exoplayer:${androidxMedia3Version}"

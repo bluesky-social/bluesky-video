@@ -1,12 +1,14 @@
 package expo.modules.blueskyvideo
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
 import android.view.ViewGroup
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -20,11 +22,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 
 @UnstableApi
 class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
   private val playerScope = CoroutineScope(Job() + Dispatchers.Main)
   private val playerView: PlayerView
+  var player: ExoPlayer? = null
   private var progressTracker: ProgressTracker? = null
 
   var url: Uri? = null
@@ -84,9 +88,6 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
 
   init {
     val playerView = PlayerView(context).apply {
-      setShowSubtitleButton(true)
-      setShowNextButton(true)
-      setShowPreviousButton(true)
       setBackgroundColor(Color.BLACK)
       resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
       useController = false
@@ -107,11 +108,12 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
   // Lifecycle
 
   private fun playVideo() {
-    if (this.playerView.player != null) {
+    if (this.player != null) {
       return
     }
 
     val player = this.createExoPlayer()
+    this.player = player
     this.playerView.player = player
 
     playerScope.launch {
@@ -122,13 +124,14 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
   }
 
   private fun removeVideo() {
-    val player = this.playerView.player ?: return
+    val player = this.player ?: return
 
     this.mute()
     this.pause()
     this.isLoading = true
 
     player.release()
+    this.player = null
     this.playerView.player = null
     this.isLoading = false
   }
@@ -147,13 +150,13 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
 
   private fun play() {
     this.addProgressTracker()
-    this.playerView.player?.play()
+    this.player?.play()
     this.isPlaying = true
   }
 
   private fun pause() {
     this.removeProgressTracker()
-    this.playerView.player?.pause()
+    this.player?.pause()
     this.isPlaying = false
   }
 
@@ -166,12 +169,12 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
   }
 
   private fun mute() {
-    this.playerView.player?.volume = 0f
+    this.player?.volume = 0f
     this.isMuted = true
   }
 
   private fun unmute() {
-    this.playerView.player?.volume = 1f
+    this.player?.volume = 1f
     this.isMuted = false
   }
 
@@ -184,19 +187,34 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
   }
 
   fun enterFullscreen() {
-//      val intent = Intent(context, FullscreenPlayerActivity::class.java)
-//      intent.putExtra(VideoManager.INTENT_PLAYER_KEY, id)
-//      currentActivity.startActivity(intent)
-//
-//      // Disable the enter transition
-//      if (Build.VERSION.SDK_INT >= 34) {
-//        currentActivity.overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, 0, 0)
-//      } else {
-//        @Suppress("DEPRECATION")
-//        currentActivity.overridePendingTransition(0, 0)
-//      }
-//      onFullscreenEnter(Unit)
-//      isInFullscreen = true
+    val currentActivity = this.appContext.currentActivity ?: return
+
+    this.unmute()
+    if (!this.isPlaying) {
+      this.play()
+    }
+
+    // Remove the player from this view, but don't null the player!
+    this.playerView.player = null
+
+    // create the intent and give it a view
+    val intent = Intent(context, FullscreenActivity::class.java)
+    FullscreenActivity.asscVideoView = WeakReference(this)
+
+    // fire the fullscreen event and launch the intent
+    this.isFullscreen = true
+    currentActivity.startActivity(intent)
+  }
+
+  fun onExitFullscreen() {
+    this.isFullscreen = false
+    this.mute()
+    if(autoplay) {
+      this.play()
+    } else {
+      this.pause()
+    }
+    this.playerView.player = this.player
   }
 
   // Visibility
