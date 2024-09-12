@@ -32,12 +32,14 @@ class PlayerManager {
     self.availalbePlayers.append(player)
   }
   
-  func playerItem(url: URL, player: AVPlayer) -> AVPlayerItem {
+  func playerItem(url: URL, player: AVPlayer) -> PlayerItem {
     var playerItem: PlayerItem
     
     if let item = playerItems[url] {
-      // Always ensure that no other player is using this item
+      // Always ensure that no other player is using this item. Be sure to clean up any lingering
+      // observers on the item with its previously associated view
       if item.associatedPlayer != nil {
+        item.associatedView?.removeObserversFromPlayerItem(item)
         item.associatedPlayer?.replaceCurrentItem(with: nil)
         item.associatedPlayer = nil
       }

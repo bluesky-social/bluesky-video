@@ -89,6 +89,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     // Get the player item and add it to the player
     let playerItem = PlayerManager.shared.playerItem(url: url,
                                                      player: player)
+    playerItem.associatedView = self
     player.replaceCurrentItem(with: playerItem)
     
     // Add observers to the player
@@ -112,7 +113,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     // Note that this won't get picked up by the observer since it isn't
     // a change in the status property
     if playerItem.status == .readyToPlay {
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { [weak self] in
         self?.isLoading = false
         self?.play()
       }
@@ -137,8 +138,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     
     // Remove any observers from the player item and nil the item
     if let playerItem = self.player?.currentItem {
-      NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: playerItem)
-      playerItem.removeObserver(self, forKeyPath: "status")
+      removeObserversFromPlayerItem(playerItem)
     }
 
     // Recycle the player and nil the player
@@ -221,6 +221,11 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
         "timeRemaining": timeRemaining
       ])
     }
+  }
+  
+  func removeObserversFromPlayerItem(_ playerItem: AVPlayerItem) {
+    NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: playerItem)
+    playerItem.removeObserver(self, forKeyPath: "status")
   }
   
   // MARK: - AVPlayerViewControllerDelegate

@@ -9,4 +9,5 @@ import AVFoundation
 
 class PlayerItem: AVPlayerItem {
   weak var associatedPlayer: AVPlayer?
+  weak var associatedView: VideoView?
 }
