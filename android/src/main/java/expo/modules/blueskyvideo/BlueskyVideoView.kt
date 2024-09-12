@@ -26,13 +26,15 @@ import java.lang.ref.WeakReference
 @UnstableApi
 class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
   private val playerScope = CoroutineScope(Job() + Dispatchers.Main)
+
   private val playerView: PlayerView
   var player: ExoPlayer? = null
+
   private var progressTracker: ProgressTracker? = null
 
   var url: Uri? = null
-
   var autoplay = false
+  var beginMuted = true
 
   private var isFullscreen: Boolean = false
     set(value) {
@@ -77,13 +79,15 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
       ))
     }
 
-  private val onStatusChange by EventDispatcher()
-  private val onLoadingChange by EventDispatcher()
   private val onActiveChange by EventDispatcher()
-  private val onTimeRemainingChange by EventDispatcher()
+  private val onLoadingChange by EventDispatcher()
   private val onMutedChange by EventDispatcher()
-  private val onError by EventDispatcher()
   private val onPlayerPress by EventDispatcher()
+  private val onStatusChange by EventDispatcher()
+  private val onTimeRemainingChange by EventDispatcher()
+  private val onError by EventDispatcher()
+
+  private var enteredFullscreenMuteState = true
 
   init {
     val playerView = PlayerView(context).apply {
@@ -106,7 +110,9 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
 
   // Lifecycle
 
-  private fun playVideo() {
+  private fun setup() {
+    // We shouldn't encounter this scenario, but would rather be safe than sorry here and just
+    // skip setup if we do.
     if (this.player != null) {
       return
     }
@@ -122,7 +128,7 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
     }
   }
 
-  private fun removeVideo() {
+  private fun destroy() {
     val player = this.player ?: return
 
     this.mute()
@@ -171,12 +177,10 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
     this.player?.volume = 0f
     this.isMuted = true
   }
-
   private fun unmute() {
     this.player?.volume = 1f
     this.isMuted = false
   }
-
   fun toggleMuted() {
     if (this.isMuted) {
       unmute()
@@ -188,6 +192,10 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
   fun enterFullscreen() {
     val currentActivity = this.appContext.currentActivity ?: return
 
+    this.enteredFullscreenMuteState = this.isMuted
+
+    // We always want to start with unmuted state and playing. Fire those from here so the
+    // event dispatcher gets called
     this.unmute()
     if (!this.isPlaying) {
       this.play()
@@ -207,7 +215,9 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
 
   fun onExitFullscreen() {
     this.isFullscreen = false
-    this.mute()
+    if (this.enteredFullscreenMuteState) {
+      this.mute()
+    }
     if(autoplay) {
       this.play()
     } else {
@@ -225,9 +235,9 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
 
     this.isViewActive = isActive
     if (isActive) {
-      this.playVideo()
+      this.setup()
     } else {
-      this.removeVideo()
+      this.destroy()
     }
     return true
   }
@@ -254,6 +264,8 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
     return visibleArea >= 0.5 * totalArea
   }
 
+  // Setup helpers
+
   private suspend fun createMediaItem(): MediaItem {
     return withContext(Dispatchers.IO) {
       MediaItem.Builder()
@@ -271,14 +283,17 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
       }
       .build().apply {
         repeatMode = ExoPlayer.REPEAT_MODE_ALL
-        volume = 0f
+        if (beginMuted) {
+          volume = 0f
+        }
         addListener(object : Player.Listener {
           override fun onPlaybackStateChanged(playbackState: Int) {
             when (playbackState) {
               ExoPlayer.STATE_READY -> {
-                if (this@BlueskyVideoView.autoplay) {
-                  this@BlueskyVideoView.isLoading = false
-                  this@BlueskyVideoView.play()
+                val view = this@BlueskyVideoView
+                if (view.autoplay) {
+                  view.isLoading = false
+                  view.play()
                 }
               }
             }
