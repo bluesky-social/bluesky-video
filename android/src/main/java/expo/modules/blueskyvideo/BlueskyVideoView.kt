@@ -166,10 +166,12 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
   }
 
   private fun mute() {
+    this.playerView.player?.volume = 0f
     this.isMuted = true
   }
 
   private fun unmute() {
+    this.playerView.player?.volume = 1f
     this.isMuted = false
   }
 
