@@ -10,11 +10,11 @@ import AVFoundation
 class PlayerManager {
   static let shared = PlayerManager()
   
-  private var availalbePlayers: [AVPlayer] = []
+  private var availablePlayers: [AVPlayer] = []
   private var usedPlayers: Set<AVPlayer> = []
   
   func dequeuePlayer() -> AVPlayer {
-    if let player = availalbePlayers.popLast() {
+    if let player = availablePlayers.popLast() {
       self.usedPlayers.insert(player)
       return player
     } else {
@@ -28,7 +28,7 @@ class PlayerManager {
   func recyclePlayer(_ player: AVPlayer) {
     self.resetPlayer(player)
     self.usedPlayers.remove(player)
-    self.availalbePlayers.append(player)
+    self.availablePlayers.append(player)
   }
   
   private func resetPlayer(_ player: AVPlayer) {
@@ -48,7 +48,7 @@ class PlayerManager {
   }
   
   func allPlayers() -> [AVPlayer] {
-    return Array(self.usedPlayers) + self.availalbePlayers
+    return Array(self.usedPlayers) + self.availablePlayers
   }
 }
 
