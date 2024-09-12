@@ -251,10 +251,10 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
         setLooper(context.mainLooper)
         setSeekForwardIncrementMs(5000)
         setSeekBackIncrementMs(5000)
-        isMuted = true
       }
       .build().apply {
         repeatMode = ExoPlayer.REPEAT_MODE_ALL
+        volume = 0f
         addListener(object : Player.Listener {
           override fun onPlaybackStateChanged(playbackState: Int) {
             when (playbackState) {
