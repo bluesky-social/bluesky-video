@@ -80,5 +80,9 @@ class ViewManager {
         currentlyActiveView = view
       }
     }
+
+    fun getActiveView(): BlueskyVideoView? {
+      return currentlyActiveView
+    }
   }
 }

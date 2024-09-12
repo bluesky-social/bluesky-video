@@ -11,9 +11,7 @@ const NativeView: React.ComponentType<
   }
 > = requireNativeViewManager('BlueskyVideo')
 
-export class BlueskyVideoView extends React.Component<
-  BlueskyVideoViewProps & {style?: StyleProp<ViewStyle>}
-> {
+export class BlueskyVideoView extends React.Component<BlueskyVideoViewProps> {
   ref: React.RefObject<any> = React.createRef()
 
   togglePlayback = () => {
@@ -32,7 +30,7 @@ export class BlueskyVideoView extends React.Component<
     return (
       <NativeView
         {...this.props}
-        style={[{flex: 1}, this.props.style]}
+        style={[this.props.style, {flex: 1}]}
         ref={this.ref}
       />
     )
