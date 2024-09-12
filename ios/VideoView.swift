@@ -137,8 +137,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
     
     // Remove any observers from the player item and nil the item
-    if let playerItem = self.player?.currentItem {
+    if let playerItem = self.player?.currentItem as? PlayerItem {
       removeObserversFromPlayerItem(playerItem)
+      playerItem.associatedView = nil
     }
 
     // Recycle the player and nil the player

@@ -40,6 +40,7 @@ class PlayerManager {
       // observers on the item with its previously associated view
       if item.associatedPlayer != nil {
         item.associatedView?.removeObserversFromPlayerItem(item)
+        item.associatedView = nil
         item.associatedPlayer?.replaceCurrentItem(with: nil)
         item.associatedPlayer = nil
       }
