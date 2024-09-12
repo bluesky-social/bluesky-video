@@ -307,9 +307,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     let selectorToForceFullScreenMode = NSSelectorFromString(selectorName)
 
     if pViewController.responds(to: selectorToForceFullScreenMode) {
+      pViewController.perform(selectorToForceFullScreenMode, with: true, with: nil)
       self.unmute()
       self.isFullscreen = true
-      pViewController.perform(selectorToForceFullScreenMode, with: true, with: nil)
     }
   }
 }
