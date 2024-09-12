@@ -87,20 +87,15 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     let player = PlayerManager.shared.dequeuePlayer()
     
     // Get the player item and add it to the player
-    let playerItem = PlayerManager.shared.playerItem(url: url,
-                                                     player: player)
-    playerItem.associatedView = self
+    let playerItem = AVPlayerItem(url: url)
     player.replaceCurrentItem(with: playerItem)
     
     // Add observers to the player
     self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
     
     // Add observers to the player item
-    NotificationCenter.default.addObserver(self,
-                                           selector: #selector(playerDidFinishPlaying),
-                                           name: .AVPlayerItemDidPlayToEndTime,
-                                           object: playerItem)
-    playerItem.addObserver(self, forKeyPath: "status", options: [.old, .new], context: nil)
+    self.addObserversToPlayerItem(playerItem)
+
 
     pViewController.player = player
     self.addSubview(pViewController.view)
@@ -137,9 +132,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
     
     // Remove any observers from the player item and nil the item
-    if let playerItem = self.player?.currentItem as? PlayerItem {
+    if let playerItem = self.player?.currentItem {
       removeObserversFromPlayerItem(playerItem)
-      playerItem.associatedView = nil
     }
 
     // Recycle the player and nil the player
@@ -222,6 +216,14 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
         "timeRemaining": timeRemaining
       ])
     }
+  }
+  
+  func addObserversToPlayerItem(_ playerItem: AVPlayerItem) {
+    NotificationCenter.default.addObserver(self,
+                                           selector: #selector(playerDidFinishPlaying),
+                                           name: .AVPlayerItemDidPlayToEndTime,
+                                           object: playerItem)
+    playerItem.addObserver(self, forKeyPath: "status", options: [.old, .new], context: nil)
   }
   
   func removeObserversFromPlayerItem(_ playerItem: AVPlayerItem) {

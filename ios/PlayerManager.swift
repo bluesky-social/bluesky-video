@@ -12,7 +12,6 @@ class PlayerManager {
   
   private var availalbePlayers: [AVPlayer] = []
   private var usedPlayers: Set<AVPlayer> = []
-  private var playerItems: [URL: PlayerItem] = [:]
   
   func dequeuePlayer() -> AVPlayer {
     if let player = availalbePlayers.popLast() {
@@ -32,46 +31,11 @@ class PlayerManager {
     self.availalbePlayers.append(player)
   }
   
-  func playerItem(url: URL, player: AVPlayer) -> PlayerItem {
-    var playerItem: PlayerItem
-    
-    if let item = playerItems[url] {
-      // Always ensure that no other player is using this item. Be sure to clean up any lingering
-      // observers on the item with its previously associated view
-      if item.associatedPlayer != nil {
-        item.associatedView?.removeObserversFromPlayerItem(item)
-        item.associatedView = nil
-        item.associatedPlayer?.replaceCurrentItem(with: nil)
-        item.associatedPlayer = nil
-      }
-      playerItem = item
-    } else {
-      let newItem = PlayerItem(url: url)
-      self.applyDefaultsToPlayerItem(newItem)
-      
-      // Never store over 3 items at once
-      if playerItems.count >= 4 {
-        let oldestItem = playerItems.removeValue(forKey: playerItems.keys.first!)
-        oldestItem?.associatedPlayer?.replaceCurrentItem(with: nil)
-      }
-      
-      playerItems[url] = newItem
-      playerItem = newItem
-    }
-    
-    playerItem.associatedPlayer = player
-    return playerItem
-  }
-  
   private func resetPlayer(_ player: AVPlayer) {
     player.replaceCurrentItem(with: nil)
     player.isMuted = true
     player.pause()
     player.seek(to: CMTime.zero)
-  }
-  
-  func clearPlayerItems() {
-    self.playerItems.removeAll()
   }
   
   // MARK: - configuration
@@ -81,11 +45,6 @@ class PlayerManager {
     player.preventsDisplaySleepDuringVideoPlayback = true
     player.isMuted = true
   
-  }
-  
-  private func applyDefaultsToPlayerItem(_ playerItem: PlayerItem) {
-    // Prefer a buffer size of 10 seconds
-    playerItem.preferredForwardBufferDuration = 10
   }
   
   func allPlayers() -> [AVPlayer] {
