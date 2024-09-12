@@ -275,9 +275,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   func togglePlayback() {
     if self.isPlaying {
-      self.play()
-    } else {
       self.pause()
+    } else {
+      self.play()
     }
   }
 
