@@ -246,9 +246,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   
   // MARK: - visibility
   
-  func setIsCurrentlyActive(active: Bool) {
+  func setIsCurrentlyActive(active: Bool) -> Bool {
     if self.isFullscreen {
-      return
+      return false
     }
 
     self.isViewActive = active
@@ -257,6 +257,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     } else {
       self.removeVideo()
     }
+    return true
   }
   
   // MARK: - controls
