@@ -60,6 +60,9 @@ function Player({url}: {url: string}) {
         onStatusChange={e => {
           console.log('status', e.nativeEvent.status)
         }}
+        onLoadingChange={e => {
+          console.log('loading', e.nativeEvent.isLoading)
+        }}
         onTimeRemainingChange={e => {
           console.log('timeRemaining', e.nativeEvent.timeRemaining)
         }}

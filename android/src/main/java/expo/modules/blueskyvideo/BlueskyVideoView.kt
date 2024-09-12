@@ -6,7 +6,7 @@ import android.graphics.Rect
 import android.net.Uri
 import android.view.ViewGroup
 import androidx.media3.common.MediaItem
-import androidx.media3.common.util.Log
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -46,7 +46,7 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
     set(value) {
       field = value
       onStatusChange(mapOf(
-        "isPlaying" to value
+        "status" to if (value) "playing" else "paused"
       ))
     }
 
@@ -115,15 +115,10 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
     this.playerView.player = player
 
     playerScope.launch {
-      Log.d("BlueskyVideoView", "Creating media item")
       val mediaItem = createMediaItem()
       player.setMediaItem(mediaItem)
       player.prepare()
-      Log.d("BlueskyVideoView", "Player prepared")
-      player.playWhenReady = autoplay
     }
-
-    this.progressTracker = ProgressTracker(player, onTimeRemainingChange)
   }
 
   private fun removeVideo() {
@@ -132,9 +127,6 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
     this.mute()
     this.pause()
     this.isLoading = true
-
-    this.progressTracker?.remove()
-    this.progressTracker = null
 
     player.release()
     this.playerView.player = null
@@ -154,11 +146,13 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
   // Controls
 
   private fun play() {
+    this.addProgressTracker()
     this.playerView.player?.play()
     this.isPlaying = true
   }
 
   private fun pause() {
+    this.removeProgressTracker()
     this.playerView.player?.pause()
     this.isPlaying = false
   }
@@ -255,9 +249,32 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
         setLooper(context.mainLooper)
         setSeekForwardIncrementMs(5000)
         setSeekBackIncrementMs(5000)
+        isMuted = true
       }
       .build().apply {
         repeatMode = ExoPlayer.REPEAT_MODE_ALL
+        addListener(object : Player.Listener {
+          override fun onPlaybackStateChanged(playbackState: Int) {
+            when (playbackState) {
+              ExoPlayer.STATE_READY -> {
+                if (this@BlueskyVideoView.autoplay) {
+                  this@BlueskyVideoView.isLoading = false
+                  this@BlueskyVideoView.play()
+                }
+              }
+            }
+          }
+        })
       }
+  }
+
+  private fun addProgressTracker() {
+    val player = this.playerView.player ?: return
+    this.progressTracker = ProgressTracker(player, onTimeRemainingChange)
+  }
+
+  private fun removeProgressTracker() {
+    this.progressTracker?.remove()
+    this.progressTracker = null
   }
 }
