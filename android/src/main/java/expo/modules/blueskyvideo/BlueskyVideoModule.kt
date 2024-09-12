@@ -28,6 +28,9 @@ class BlueskyVideoModule : Module() {
       if (!wasPlaying) {
         return@OnActivityEntersBackground
       }
+      val view = ViewManager.getActiveView() ?: return@OnActivityEntersBackground
+      val player = view.player ?: return@OnActivityEntersBackground
+      player.play()
     }
 
     AsyncFunction("updateActiveVideoViewAsync") {
