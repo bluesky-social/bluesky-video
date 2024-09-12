@@ -29,7 +29,16 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
   }
   
-  var isViewActive: Bool = false
+  var isViewActive: Bool = false {
+    didSet {
+      if isViewActive == oldValue {
+        return
+      }
+      self.onActiveChange([
+        "isActive": isViewActive
+      ])
+    }
+  }
   
   var isFullscreen: Bool = false {
     didSet {
@@ -52,6 +61,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   let onError = EventDispatcher()
   let onMutedChange = EventDispatcher()
   let onTimeRemainingChange = EventDispatcher()
+  let onActiveChange = EventDispatcher()
   
   // observers
   var periodicTimeObserver: Any? = nil
@@ -88,6 +98,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     
     // Get the player item and add it to the player
     let playerItem = AVPlayerItem(url: url)
+    playerItem.preferredForwardBufferDuration = 5
     player.replaceCurrentItem(with: playerItem)
     
     // Add observers to the player
@@ -248,7 +259,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     if self.isFullscreen {
       return
     }
-    
+
+    self.isViewActive = active
     if active {
       self.playVideo()
     } else {

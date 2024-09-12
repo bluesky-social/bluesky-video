@@ -12,4 +12,5 @@ export type BlueskyVideoViewProps = {
   onTimeRemainingChange?: (
     e: NativeSyntheticEvent<{timeRemaining: number}>
   ) => void
+  onActiveChange?: (e: NativeSyntheticEvent<{isActive: boolean}>) => void
 }
