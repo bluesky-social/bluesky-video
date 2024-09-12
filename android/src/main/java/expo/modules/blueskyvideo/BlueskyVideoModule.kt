@@ -3,13 +3,14 @@ package expo.modules.blueskyvideo
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 @UnstableApi
 class BlueskyVideoModule : Module() {
-  private var wasPlaying = false
+  private var wasPlayingPlayer: Player? = null
 
   override fun definition() = ModuleDefinition {
     Name("BlueskyVideo")
@@ -19,18 +20,15 @@ class BlueskyVideoModule : Module() {
       val player = view.player ?: return@OnActivityEntersForeground
 
       if (player.isPlaying) {
-        wasPlaying = true
+        wasPlayingPlayer = player
         player.pause()
       }
     }
 
     OnActivityEntersBackground {
-      if (!wasPlaying) {
-        return@OnActivityEntersBackground
-      }
-      val view = ViewManager.getActiveView() ?: return@OnActivityEntersBackground
-      val player = view.player ?: return@OnActivityEntersBackground
+      val player = wasPlayingPlayer ?: return@OnActivityEntersBackground
       player.play()
+      wasPlayingPlayer = null
     }
 
     AsyncFunction("updateActiveVideoViewAsync") {
