@@ -1,35 +1,18 @@
-# bluesky-video
+## Note about support for this library
 
-A video player library for Bluesky
+This library was made for the Bluesky Social App. Support for this library is very much dependent on two factors:
 
-# API documentation
+- Do we have time to implement a feature or fix an issue?
+- How important is the feature to Bluesky or does it fix an issue present in Bluesky?
 
-- [Documentation for the main branch](https://github.com/expo/expo/blob/main/docs/pages/versions/unversioned/sdk/bluesky-video.md)
-- [Documentation for the latest stable release](https://docs.expo.dev/versions/latest/sdk/bluesky-video/)
+If there are features that you want to see in this library that don't already exist and likely (or definitely) do not greatly improve the experience in Bluesky, please feel free to submit a PR! Of course, you should also feel free to make feature suggestions or bug reports as well, and whenever free time is available the might be worked on. Just know it might take some time.
 
-# Installation in managed Expo projects
+Thank you!
 
-For [managed](https://docs.expo.dev/archive/managed-vs-bare/) Expo projects, please follow the installation instructions in the [API documentation for the latest stable release](#api-documentation). If you follow the link and there is no documentation available then this library is not yet usable within managed projects &mdash; it is likely to be included in an upcoming Expo SDK release.
+# Bluesky Video
 
-# Installation in bare React Native projects
+Video player library used in the Bluesky native app.
 
-For bare React Native projects, you must ensure that you have [installed and configured the `expo` package](https://docs.expo.dev/bare/installing-expo-modules/) before continuing.
+## Usage
 
-### Add the package to your npm dependencies
-
-```
-npm install bluesky-video
-```
-
-### Configure for iOS
-
-Run `npx pod-install` after installing the npm package.
-
-
-### Configure for Android
-
-
-
-# Contributing
-
-Contributions are very welcome! Please refer to guidelines described in the [contributing guide]( https://github.com/expo/expo#contributing).
+TODO
