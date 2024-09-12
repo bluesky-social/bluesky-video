@@ -27,12 +27,12 @@ public class BlueskyVideoModule: Module {
     
     View(VideoView.self) {
       Events([
-        "onStatusChange",
-        "onLoadingChange",
-        "onError",
-        "onMutedChange",
-        "onTimeRemainingChange",
         "onActiveChange",
+        "onLoadingChange",
+        "onMutedChange",
+        "onStatusChange",
+        "onTimeRemainingChange",
+        "onError",
       ])
       
       Prop("url") { (view: VideoView, prop: URL) in
@@ -41,6 +41,10 @@ public class BlueskyVideoModule: Module {
       
       Prop("autoplay") { (view: VideoView, prop: Bool) in
         view.autoplay = prop
+      }
+      
+      Prop("beginMuted") { (view: VideoView, prop: Bool) in
+        view.beginMuted = prop
       }
       
       AsyncFunction("togglePlayback") { (view: VideoView) in

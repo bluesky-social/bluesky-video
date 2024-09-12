@@ -90,7 +90,7 @@ class ViewManager: Manager<VideoView> {
   
   private func clearActiveView() {
     if let currentlyActiveView = self.currentlyActiveView {
-      currentlyActiveView.setIsCurrentlyActive(active: false)
+      let _ = currentlyActiveView.setIsCurrentlyActive(active: false)
       self.currentlyActiveView = nil
     }
   }

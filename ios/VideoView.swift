@@ -2,11 +2,28 @@ import ExpoModulesCore
 import AVFoundation
 
 class VideoView: ExpoView, AVPlayerViewControllerDelegate {
-  var pViewController: AVPlayerViewController? = nil
-  var player: AVPlayer? = nil
+  private var pViewController: AVPlayerViewController?
+  private var player: AVPlayer?
+  private var periodicTimeObserver: Any?
+  
+  // props
+  var autoplay: Bool = true
+  var url: URL?
+  var beginMuted = true
   
   // controls
-  var isPlaying: Bool = false {
+  private var isLoading: Bool = true {
+    didSet {
+      if isLoading == oldValue {
+        return
+      }
+      self.onLoadingChange([
+        "isLoading": isLoading
+      ])
+    }
+  }
+  
+  private var isPlaying: Bool = false {
     didSet {
       if isPlaying == oldValue {
         return
@@ -18,18 +35,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
   }
   
-  var isLoading: Bool = true {
-    didSet {
-      if isLoading == oldValue {
-        return
-      }
-      self.onLoadingChange([
-        "isLoading": isLoading
-      ])
-    }
-  }
-  
-  var isViewActive: Bool = false {
+  private var isViewActive: Bool = false {
     didSet {
       if isViewActive == oldValue {
         return
@@ -40,7 +46,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
   }
   
-  var isFullscreen: Bool = false {
+  private var isFullscreen: Bool = false {
     didSet {
       if isFullscreen {
         self.pViewController?.showsPlaybackControls = isFullscreen
@@ -51,20 +57,15 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
   }
   
-  // props
-  var autoplay: Bool = true
-  var url: URL? = nil
-  
   // event handlers
-  let onStatusChange = EventDispatcher()
-  let onLoadingChange = EventDispatcher()
-  let onError = EventDispatcher()
-  let onMutedChange = EventDispatcher()
-  let onTimeRemainingChange = EventDispatcher()
-  let onActiveChange = EventDispatcher()
+  private let onActiveChange = EventDispatcher()
+  private let onLoadingChange = EventDispatcher()
+  private let onMutedChange = EventDispatcher()
+  private let onStatusChange = EventDispatcher()
+  private let onTimeRemainingChange = EventDispatcher()
+  private let onError = EventDispatcher()
   
-  // observers
-  var periodicTimeObserver: Any? = nil
+  private var enteredFullScreenMuted = true
   
   required init(appContext: AppContext? = nil) {
     self.pViewController = AVPlayerViewController()
@@ -74,7 +75,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   
   // MARK: - lifecycle
   
-  func playVideo() {
+  private func setup() {
     guard let url = url, self.player == nil else {
       return
     }
@@ -117,7 +118,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     self.player = player
   }
   
-  func removeVideo() {
+  private func destroy() {
     guard let player = self.player else {
       return
     }
@@ -159,14 +160,14 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     
     if newWindow == nil {
       ViewManager.shared.remove(self)
-      self.removeVideo()
+      self.destroy()
     } else {
       ViewManager.shared.add(self)
     }
   }
   
   deinit {
-    self.removeVideo()
+    self.destroy()
   }
   
   // MARK: - observers
@@ -253,9 +254,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.isViewActive = active
     if active {
-      self.playVideo()
+      self.setup()
     } else {
-      self.removeVideo()
+      self.destroy()
     }
     return true
   }
