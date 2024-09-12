@@ -4,6 +4,7 @@ import React from 'react'
 import {
   FlatList,
   ListRenderItemInfo,
+  Platform,
   Pressable,
   SafeAreaView,
   View
@@ -41,11 +42,14 @@ function Player({url}: {url: string}) {
   const ref = React.useRef<BlueskyVideoView>(null)
 
   const onPress = () => {
-    ref.current?.enterFullscreen()
+    console.log('press')
+    ref.current?.togglePlayback()
   }
 
   return (
-    <View style={{backgroundColor: 'blue', height: 300}}>
+    <Pressable
+      style={{backgroundColor: 'blue', height: 300}}
+      onPress={Platform.OS === 'ios' ? onPress : undefined}>
       <BlueskyVideoView
         url={url}
         autoplay
@@ -59,7 +63,8 @@ function Player({url}: {url: string}) {
         onTimeRemainingChange={e => {
           console.log('timeRemaining', e.nativeEvent.timeRemaining)
         }}
+        onPlayerPress={Platform.OS === 'android' ? onPress : undefined}
       />
-    </View>
+    </Pressable>
   )
 }

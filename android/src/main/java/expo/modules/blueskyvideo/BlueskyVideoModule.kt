@@ -3,6 +3,7 @@ package expo.modules.blueskyvideo
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -21,6 +22,16 @@ class BlueskyVideoModule : Module() {
     }
 
     View(BlueskyVideoView::class) {
+      Events(
+        "onStatusChange",
+        "onMutedChange",
+        "onTimeRemainingChange",
+        "onLoadingChange",
+        "onActiveChange",
+        "onPlayerPress",
+        "onError",
+      )
+
       Prop("url") { view: BlueskyVideoView, prop: Uri ->
         view.url = prop
       }
@@ -29,15 +40,15 @@ class BlueskyVideoModule : Module() {
         view.autoplay = prop
       }
 
-      AsyncFunction("togglePlayback") { view: BlueskyVideoView, value: Boolean ->
+      AsyncFunction("togglePlayback") { view: BlueskyVideoView ->
         view.togglePlayback()
       }
 
-      AsyncFunction("toggleMuted") { view: BlueskyVideoView, value: Boolean ->
+      AsyncFunction("toggleMuted") { view: BlueskyVideoView ->
         view.toggleMuted()
       }
 
-      AsyncFunction("enterFullscreen") { view: BlueskyVideoView, value: Boolean ->
+      AsyncFunction("enterFullscreen") { view: BlueskyVideoView ->
         view.enterFullscreen()
       }
     }

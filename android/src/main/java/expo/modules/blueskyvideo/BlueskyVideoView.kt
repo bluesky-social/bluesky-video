@@ -31,12 +31,18 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
 
   var autoplay = false
 
-  var isFullscreen: Boolean = false
+  private var isFullscreen: Boolean = false
     set(value) {
-
+      field = value
+      if (value) {
+        this.playerView.useController = true
+        this.playerView.player?.play()
+      } else {
+        this.playerView.useController = false
+      }
     }
 
-  var isPlaying: Boolean = false
+  private var isPlaying: Boolean = false
     set(value) {
       field = value
       onStatusChange(mapOf(
@@ -44,7 +50,7 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
       ))
     }
 
-  var isMuted: Boolean = false
+  private var isMuted: Boolean = false
     set(value) {
       field = value
       onMutedChange(mapOf(
@@ -52,7 +58,7 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
       ))
     }
 
-  var isLoading: Boolean = false
+  private var isLoading: Boolean = false
     set(value) {
       field = value
       onLoadingChange(mapOf(
@@ -60,7 +66,7 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
       ))
     }
 
-  var isViewActive: Boolean = false
+  private var isViewActive: Boolean = false
     set(value) {
       field = value
       onActiveChange(mapOf(
@@ -68,26 +74,33 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
       ))
     }
 
-  val onStatusChange by EventDispatcher()
-  val onLoadingChange by EventDispatcher()
-  val onActiveChange by EventDispatcher()
-  val onTimeRemainingChange by EventDispatcher()
-  val onMutedChange by EventDispatcher()
-  val onError by EventDispatcher()
+  private val onStatusChange by EventDispatcher()
+  private val onLoadingChange by EventDispatcher()
+  private val onActiveChange by EventDispatcher()
+  private val onTimeRemainingChange by EventDispatcher()
+  private val onMutedChange by EventDispatcher()
+  private val onError by EventDispatcher()
+  private val onPlayerPress by EventDispatcher()
 
   init {
     val playerView = PlayerView(context).apply {
       setShowSubtitleButton(true)
       setShowNextButton(true)
       setShowPreviousButton(true)
-      resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-      useController = true
-      layoutParams = ViewGroup.LayoutParams(
-        LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
-      )
       setBackgroundColor(Color.BLACK)
+      resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+      useController = false
+      setOnClickListener { _ ->
+        onPlayerPress(mapOf())
+      }
     }
-    this.addView(playerView)
+    this.addView(
+      playerView,
+      ViewGroup.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.MATCH_PARENT
+      )
+    )
     this.playerView = playerView
   }
 
@@ -141,10 +154,12 @@ class BlueskyVideoView(context: Context, appContext: AppContext) : ExpoView(cont
   // Controls
 
   private fun play() {
+    this.playerView.player?.play()
     this.isPlaying = true
   }
 
   private fun pause() {
+    this.playerView.player?.pause()
     this.isPlaying = false
   }
 
