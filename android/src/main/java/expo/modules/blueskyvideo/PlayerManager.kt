@@ -26,18 +26,19 @@ class PlayerManager(val context: Context) {
 
   fun recyclePlayer(player: ExoPlayer) {
     if (usedPlayers.contains(player)) {
+      this.resetPlayer(player)
       usedPlayers.minus(player)
       availablePlayers.plus(player)
     }
   }
 
-  fun resetPlayer(player: ExoPlayer) {
-    player.stop()
-    player.seekTo(0)
-  }
-
   fun allPlayers(): List<ExoPlayer> {
     return availablePlayers.toList() + usedPlayers.toList()
+  }
+
+  private fun resetPlayer(player: ExoPlayer) {
+    player.stop()
+    player.seekTo(0)
   }
 
   private fun createExoPlayer(): ExoPlayer {
