@@ -4,6 +4,10 @@
   "description": "A video player library for Bluesky",
   "main": "build/index.js",
   "types": "build/index.d.ts",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "expo-module build",
     "clean": "expo-module clean",
