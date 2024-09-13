@@ -66,6 +66,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private let onError = EventDispatcher()
 
   private var enteredFullScreenMuted = true
+  private var ignoreAutoplay = false
 
   required init(appContext: AppContext? = nil) {
     self.pViewController = AVPlayerViewController()
@@ -122,6 +123,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     guard let player = self.player else {
       return
     }
+    
+    self.ignoreAutoplay = false
 
     // Fire final events
     self.mute()
@@ -192,7 +195,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     if keyPath == "status" {
       if playerItem.status == AVPlayerItem.Status.readyToPlay {
         self.isLoading = false
-        if self.autoplay {
+        if self.autoplay || self.ignoreAutoplay {
           self.play()
         }
       }
@@ -240,7 +243,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
                             willEndFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator) {
     coordinator.animate(alongsideTransition: nil) { _ in
       self.isFullscreen = false
-      self.mute()
+      if self.enteredFullScreenMuted {
+        self.mute()
+      }
       self.play()
     }
   }
@@ -254,7 +259,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.isViewActive = active
     if active {
-      self.setup()
+      if autoplay {
+        self.setup()
+      }
     } else {
       self.destroy()
     }
@@ -277,7 +284,12 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     if self.isPlaying {
       self.pause()
     } else {
-      self.play()
+      if self.player == nil {
+        self.ignoreAutoplay = true
+        self.setup()
+      } else {
+        self.play()
+      }
     }
   }
 
@@ -316,6 +328,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     if pViewController.responds(to: selectorToForceFullScreenMode) {
       pViewController.perform(selectorToForceFullScreenMode, with: true, with: nil)
+      self.enteredFullScreenMuted = self.player?.isMuted ?? true
       self.unmute()
       self.isFullscreen = true
     }
