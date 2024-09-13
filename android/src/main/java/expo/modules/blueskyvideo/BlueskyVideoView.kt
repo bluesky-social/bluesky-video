@@ -177,6 +177,7 @@ class BlueskyVideoView(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         ViewManager.removeView(this)
+        this.destroy()
     }
 
     // Controls
