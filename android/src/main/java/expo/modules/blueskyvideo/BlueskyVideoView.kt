@@ -29,7 +29,7 @@ class BlueskyVideoView(
     context: Context,
     appContext: AppContext,
 ) : ExpoView(context, appContext) {
-    private val playerScope = CoroutineScope(Job() + Dispatchers.Main)
+    private var playerScope: CoroutineScope? = null
 
     private val playerView: PlayerView
     var player: ExoPlayer? = null
@@ -138,17 +138,20 @@ class BlueskyVideoView(
             return
         }
 
+
         this.isLoading = true
 
         val player = this.createExoPlayer()
         this.player = player
         this.playerView.player = player
 
+        val playerScope = CoroutineScope(Job() + Dispatchers.Main)
         playerScope.launch {
             val mediaItem = createMediaItem()
             player.setMediaItem(mediaItem)
             player.prepare()
         }
+        this.playerScope = playerScope
     }
 
     private fun destroy() {
@@ -157,13 +160,13 @@ class BlueskyVideoView(
         this.isLoading = false
         this.ignoreAutoplay = false
 
-        this.mute()
         this.pause()
 
         player.release()
         this.player = null
         this.playerView.player = null
-        this.playerScope.cancel()
+        this.playerScope?.cancel()
+        this.playerScope = null
     }
 
     override fun onAttachedToWindow() {
