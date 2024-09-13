@@ -246,7 +246,11 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   func playerViewController(_ playerViewController: AVPlayerViewController,
                             willEndFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator) {
-    coordinator.animate(alongsideTransition: nil) { _ in
+    coordinator.animate(alongsideTransition: nil) { context in
+      if context.isCancelled {
+        return
+      }
+      
       self.isFullscreen = false
       if self.enteredFullScreenMuted {
         self.mute()
