@@ -151,7 +151,6 @@ class BlueskyVideoView(
 
         this.mute()
         this.pause()
-        this.isLoading = true
 
         player.release()
         this.player = null
