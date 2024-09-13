@@ -19,6 +19,7 @@ import expo.modules.video.ProgressTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
@@ -167,6 +168,7 @@ class BlueskyVideoView(
         player.release()
         this.player = null
         this.playerView.player = null
+        this.playerScope.cancel()
     }
 
     override fun onAttachedToWindow() {
