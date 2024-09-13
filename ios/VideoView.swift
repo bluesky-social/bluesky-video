@@ -91,6 +91,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     pViewController.showsPlaybackControls = false
     pViewController.delegate = self
     pViewController.videoGravity = .resizeAspectFill
+    if #available(iOS 16.0, *) {
+      pViewController.allowsVideoFrameAnalysis = false
+    }
 
     // Recycle the current player if there is one
     if let currentPlayer = self.player {
