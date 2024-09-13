@@ -10,46 +10,48 @@ import androidx.media3.ui.PlayerView
 import java.lang.ref.WeakReference
 
 @UnstableApi
-class FullscreenActivity: AppCompatActivity() {
-  companion object {
-    var asscVideoView: WeakReference<BlueskyVideoView>? = null
-  }
-
-  override fun onCreate(savedInstanceState: Bundle?) {
-    val player = asscVideoView?.get()?.player ?: return
-
-    super.onCreate(savedInstanceState)
-
-    this.window.setFlags(
-      WindowManager.LayoutParams.FLAG_FULLSCREEN,
-      WindowManager.LayoutParams.FLAG_FULLSCREEN
-    )
-
-    // Update the player viewz
-    val playerView = PlayerView(this).apply {
-      setBackgroundColor(Color.BLACK)
-      setShowSubtitleButton(true)
-      setShowNextButton(false)
-      setShowPreviousButton(false)
-      setFullscreenButtonClickListener {
-        finish()
-      }
-
-      layoutParams = ViewGroup.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.MATCH_PARENT
-      )
-      useController = true
-      controllerAutoShow = false
-      controllerHideOnTouch = true
+class FullscreenActivity : AppCompatActivity() {
+    companion object {
+        var asscVideoView: WeakReference<BlueskyVideoView>? = null
     }
-    playerView.player = player
 
-    setContentView(playerView)
-  }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        val player = asscVideoView?.get()?.player ?: return
 
-  override fun onDestroy() {
-    asscVideoView?.get()?.onExitFullscreen()
-    super.onDestroy()
-  }
+        super.onCreate(savedInstanceState)
+
+        this.window.setFlags(
+            WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN,
+        )
+
+        // Update the player viewz
+        val playerView =
+            PlayerView(this).apply {
+                setBackgroundColor(Color.BLACK)
+                setShowSubtitleButton(true)
+                setShowNextButton(false)
+                setShowPreviousButton(false)
+                setFullscreenButtonClickListener {
+                    finish()
+                }
+
+                layoutParams =
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+                useController = true
+                controllerAutoShow = false
+                controllerHideOnTouch = true
+            }
+        playerView.player = player
+
+        setContentView(playerView)
+    }
+
+    override fun onDestroy() {
+        asscVideoView?.get()?.onExitFullscreen()
+        super.onDestroy()
+    }
 }

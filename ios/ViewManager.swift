@@ -9,14 +9,14 @@ import Foundation
 
 class ViewManager: Manager<VideoView> {
   static let shared = ViewManager()
-  
+
   private var currentlyActiveView: VideoView?
   private var screenHeight = UIScreen.main.bounds.height
   private var prevCount = 0
-  
+
   override func add(_ object: VideoView) {
     super.add(object)
-    
+
     if self.prevCount == 0 {
       self.updateActiveView()
     }
@@ -27,7 +27,7 @@ class ViewManager: Manager<VideoView> {
     super.remove(object)
     self.prevCount = self.count()
   }
-  
+
   func updateActiveView() {
     DispatchQueue.main.async {
       var activeView: VideoView?
@@ -44,7 +44,7 @@ class ViewManager: Manager<VideoView> {
         guard let views = self.getEnumerator() else {
           return
         }
-        
+
         var mostVisibleView: VideoView?
         var mostVisiblePosition: CGRect?
 
@@ -52,7 +52,7 @@ class ViewManager: Manager<VideoView> {
           guard let view = view as? VideoView else {
             return
           }
-          
+
           if !view.isViewableEnough() {
             return
           }
@@ -87,15 +87,15 @@ class ViewManager: Manager<VideoView> {
       }
     }
   }
-  
+
   private func clearActiveView() {
     if let currentlyActiveView = self.currentlyActiveView {
-      currentlyActiveView.setIsCurrentlyActive(active: false)
+      _ = currentlyActiveView.setIsCurrentlyActive(active: false)
       self.currentlyActiveView = nil
     }
   }
-  
-  private func setActiveView(_ view: VideoView) {
+
+  func setActiveView(_ view: VideoView) {
     let didUpdate = view.setIsCurrentlyActive(active: true)
     if didUpdate {
       self.currentlyActiveView = view

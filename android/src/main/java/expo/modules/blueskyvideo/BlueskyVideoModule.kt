@@ -10,64 +10,69 @@ import expo.modules.kotlin.modules.ModuleDefinition
 
 @UnstableApi
 class BlueskyVideoModule : Module() {
-  private var wasPlayingPlayer: Player? = null
+    private var wasPlayingPlayer: Player? = null
 
-  override fun definition() = ModuleDefinition {
-    Name("BlueskyVideo")
+    override fun definition() =
+        ModuleDefinition {
+            Name("BlueskyVideo")
 
-    OnActivityEntersForeground {
-      val view = ViewManager.getActiveView() ?: return@OnActivityEntersForeground
-      val player = view.player ?: return@OnActivityEntersForeground
+            OnActivityEntersForeground {
+                val view = ViewManager.getActiveView() ?: return@OnActivityEntersForeground
+                val player = view.player ?: return@OnActivityEntersForeground
 
-      if (player.isPlaying) {
-        wasPlayingPlayer = player
-        player.pause()
-      }
-    }
+                if (player.isPlaying) {
+                    wasPlayingPlayer = player
+                    player.pause()
+                }
+            }
 
-    OnActivityEntersBackground {
-      val player = wasPlayingPlayer ?: return@OnActivityEntersBackground
-      player.play()
-      wasPlayingPlayer = null
-    }
+            OnActivityEntersBackground {
+                val player = wasPlayingPlayer ?: return@OnActivityEntersBackground
+                player.play()
+                wasPlayingPlayer = null
+            }
 
-    AsyncFunction("updateActiveVideoViewAsync") {
-      val handler = Handler(Looper.getMainLooper())
-      handler.post {
-        ViewManager.updateActiveView()
-      }
-    }
+            AsyncFunction("updateActiveVideoViewAsync") {
+                val handler = Handler(Looper.getMainLooper())
+                handler.post {
+                    ViewManager.updateActiveView()
+                }
+            }
 
-    View(BlueskyVideoView::class) {
-      Events(
-        "onStatusChange",
-        "onMutedChange",
-        "onTimeRemainingChange",
-        "onLoadingChange",
-        "onActiveChange",
-        "onPlayerPress",
-        "onError",
-      )
+            View(BlueskyVideoView::class) {
+                Events(
+                    "onActiveChange",
+                    "onLoadingChange",
+                    "onMutedChange",
+                    "onPlayerPress",
+                    "onStatusChange",
+                    "onTimeRemainingChange",
+                    "onError",
+                )
 
-      Prop("url") { view: BlueskyVideoView, prop: Uri ->
-        view.url = prop
-      }
+                Prop("url") { view: BlueskyVideoView, prop: Uri ->
+                    view.url = prop
+                }
 
-      Prop("autoplay") { view: BlueskyVideoView, prop: Boolean ->
-        view.autoplay = prop
-      }
+                Prop("autoplay") { view: BlueskyVideoView, prop: Boolean ->
+                    view.autoplay = prop
+                }
 
-      AsyncFunction("togglePlayback") { view: BlueskyVideoView ->
-        view.togglePlayback()
-      }
+                Prop("beginMuted") { view: BlueskyVideoView, prop: Boolean ->
+                    view.beginMuted = prop
+                }
 
-      AsyncFunction("toggleMuted") { view: BlueskyVideoView ->
-        view.toggleMuted()
-      }
+                AsyncFunction("togglePlayback") { view: BlueskyVideoView ->
+                    view.togglePlayback()
+                }
 
-      AsyncFunction("enterFullscreen") { view: BlueskyVideoView ->
-        view.enterFullscreen()
-      }
-    }
-  }
+                AsyncFunction("toggleMuted") { view: BlueskyVideoView ->
+                    view.toggleMuted()
+                }
+
+                AsyncFunction("enterFullscreen") { view: BlueskyVideoView ->
+                    view.enterFullscreen()
+                }
+            }
+        }
 }
