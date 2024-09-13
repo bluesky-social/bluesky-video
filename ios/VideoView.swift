@@ -57,7 +57,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
   }
   
-  private var forceTakeover: Bool = false {
+  var forceTakeover: Bool = false {
     didSet {
       if forceTakeover == oldValue {
         return
