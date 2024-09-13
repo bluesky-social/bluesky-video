@@ -61,7 +61,7 @@ class BlueskyVideoView(
             )
         }
 
-    private var isMuted: Boolean = false
+    private var isMuted: Boolean = true
         set(value) {
             field = value
             onMutedChange(
