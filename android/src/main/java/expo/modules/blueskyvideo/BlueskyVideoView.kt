@@ -91,6 +91,18 @@ class BlueskyVideoView(
             )
         }
 
+    var forceTakeover: Boolean = false
+        set(value) {
+            if (value == field) {
+                return
+            }
+
+            field = value
+            if (value) {
+                ViewManager.setActiveView(this)
+            }
+        }
+
     private val onActiveChange by EventDispatcher()
     private val onLoadingChange by EventDispatcher()
     private val onMutedChange by EventDispatcher()
@@ -186,6 +198,7 @@ class BlueskyVideoView(
             this.pause()
         } else {
             if (this.player == null) {
+                ViewManager.setActiveView(this)
                 this.ignoreAutoplay = true
                 this.setup()
             } else {

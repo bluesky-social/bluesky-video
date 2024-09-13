@@ -62,6 +62,10 @@ class BlueskyVideoModule : Module() {
                     view.beginMuted = prop
                 }
 
+                Prop("forceTakeover") { view: BlueskyVideoView, prop: Boolean ->
+                    view.forceTakeover = prop
+                }
+
                 AsyncFunction("togglePlayback") { view: BlueskyVideoView ->
                     view.togglePlayback()
                 }

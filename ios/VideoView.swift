@@ -56,6 +56,17 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       }
     }
   }
+  
+  private var forceTakeover: Bool = false {
+    didSet {
+      if forceTakeover == oldValue {
+        return
+      }
+      if forceTakeover {
+        ViewManager.shared.setActiveView(self)
+      }
+    }
+  }
 
   // event handlers
   private let onActiveChange = EventDispatcher()

@@ -74,7 +74,7 @@ class ViewManager {
             currentlyActiveView = null
         }
 
-        private fun setActiveView(view: BlueskyVideoView) {
+        fun setActiveView(view: BlueskyVideoView) {
             if (this.currentlyActiveView != null) {
                 this.clearActiveView()
             }

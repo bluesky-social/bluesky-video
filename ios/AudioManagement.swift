@@ -46,8 +46,6 @@ class AudioManagement {
           try AVAudioSession.sharedInstance().setActive(true)
           self.prevAudioActive = !self.prevAudioActive
         } catch { }
-
-        _ = try? AVAudioSession.sharedInstance().setActive(true)
       }
     } else {
       DispatchQueue.global(qos: .background).async {

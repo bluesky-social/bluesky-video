@@ -4,6 +4,7 @@ export type BlueskyVideoViewProps = {
   url: string
   autoplay: boolean
   beginMuted: boolean
+  forceTakeover: boolean
 
   onActiveChange?: (e: NativeSyntheticEvent<{isActive: boolean}>) => void
   onLoadingChange?: (e: NativeSyntheticEvent<{isLoading: boolean}>) => void
