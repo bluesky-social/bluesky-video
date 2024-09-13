@@ -156,7 +156,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     // Remove any observers from the player item and nil the item
     if let playerItem = self.player?.currentItem {
       removeObserversFromPlayerItem(playerItem)
-    }
+    }    
 
     // Recycle the player and nil the player
     PlayerManager.shared.recyclePlayer(player)
@@ -279,7 +279,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.isViewActive = active
     if active {
-      if self.autoplay {
+      if self.autoplay || self.forceTakeover {
         self.setup()
       }
     } else {

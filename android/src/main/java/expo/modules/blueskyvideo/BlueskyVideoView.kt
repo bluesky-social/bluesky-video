@@ -44,12 +44,7 @@ class BlueskyVideoView(
     private var isFullscreen: Boolean = false
         set(value) {
             field = value
-            if (value) {
-                this.playerView.useController = true
-                this.playerView.player?.play()
-            } else {
-                this.playerView.useController = false
-            }
+            this.playerView.useController = value
         }
 
     private var isPlaying: Boolean = false
@@ -273,7 +268,7 @@ class BlueskyVideoView(
 
         this.isViewActive = isActive
         if (isActive) {
-            if (this.autoplay) {
+            if (this.autoplay || this.forceTakeover) {
                 this.setup()
             }
         } else {
@@ -324,6 +319,7 @@ class BlueskyVideoView(
             }.build()
             .apply {
                 repeatMode = ExoPlayer.REPEAT_MODE_ALL
+                playWhenReady = false
                 if (beginMuted) {
                     volume = 0f
                 }
