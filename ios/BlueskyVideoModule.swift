@@ -5,6 +5,10 @@ public class BlueskyVideoModule: Module {
 
   public func definition() -> ModuleDefinition {
     Name("BlueskyVideo")
+    
+    OnCreate {
+      AudioManagement.shared.setPlayingVideo(false)
+    }
 
     OnAppEntersForeground {
       self.wasPlayingPlayer?.play()
