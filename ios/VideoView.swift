@@ -259,7 +259,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.isViewActive = active
     if active {
-      if autoplay {
+      if self.autoplay {
         self.setup()
       }
     } else {
@@ -285,6 +285,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       self.pause()
     } else {
       if self.player == nil {
+        ViewManager.shared.setActiveView(self)
         self.ignoreAutoplay = true
         self.setup()
       } else {
