@@ -38,6 +38,7 @@ class BlueskyVideoView(
     var url: Uri? = null
     var autoplay = false
     var beginMuted = true
+    var ignoreAutoplay = false
 
     private var isFullscreen: Boolean = false
         set(value) {
@@ -143,6 +144,8 @@ class BlueskyVideoView(
     private fun destroy() {
         val player = this.player ?: return
 
+        this.ignoreAutoplay = false
+
         this.mute()
         this.pause()
         this.isLoading = true
@@ -179,9 +182,14 @@ class BlueskyVideoView(
 
     fun togglePlayback() {
         if (this.isPlaying) {
-            pause()
+            this.pause()
         } else {
-            play()
+            if (this.player == null) {
+                this.ignoreAutoplay = true
+                this.setup()
+            } else {
+                this.play()
+            }
         }
     }
 
@@ -197,9 +205,9 @@ class BlueskyVideoView(
 
     fun toggleMuted() {
         if (this.isMuted) {
-            unmute()
+            this.unmute()
         } else {
-            mute()
+            this.mute()
         }
     }
 
@@ -232,7 +240,7 @@ class BlueskyVideoView(
         if (this.enteredFullscreenMuteState) {
             this.mute()
         }
-        if (autoplay) {
+        if (this.autoplay) {
             this.play()
         } else {
             this.pause()
@@ -249,7 +257,9 @@ class BlueskyVideoView(
 
         this.isViewActive = isActive
         if (isActive) {
-            this.setup()
+            if (this.autoplay) {
+                this.setup()
+            }
         } else {
             this.destroy()
         }
@@ -307,7 +317,7 @@ class BlueskyVideoView(
                             when (playbackState) {
                                 ExoPlayer.STATE_READY -> {
                                     val view = this@BlueskyVideoView
-                                    if (view.autoplay) {
+                                    if (view.autoplay || view.ignoreAutoplay) {
                                         view.isLoading = false
                                         view.play()
                                     }
