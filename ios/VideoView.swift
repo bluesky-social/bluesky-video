@@ -12,7 +12,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   var beginMuted = true
 
   // controls
-  private var isLoading: Bool = true {
+  private var isLoading: Bool = false {
     didSet {
       if isLoading == oldValue {
         return
@@ -80,6 +80,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     guard let url = url, self.player == nil else {
       return
     }
+    
+    self.isLoading = true
 
     // Setup the view controller
     let pViewController = AVPlayerViewController()
@@ -129,7 +131,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     // Fire final events
     self.mute()
     self.pause()
-    self.isLoading = true
+    self.isLoading = false
 
     // Remove period time observer and nil it
     if let periodicTimeObserver = self.periodicTimeObserver {

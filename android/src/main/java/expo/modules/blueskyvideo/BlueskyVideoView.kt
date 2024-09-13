@@ -130,6 +130,8 @@ class BlueskyVideoView(
             return
         }
 
+        this.isLoading = true
+
         val player = this.createExoPlayer()
         this.player = player
         this.playerView.player = player
@@ -144,6 +146,7 @@ class BlueskyVideoView(
     private fun destroy() {
         val player = this.player ?: return
 
+        this.isLoading = false
         this.ignoreAutoplay = false
 
         this.mute()
@@ -153,7 +156,6 @@ class BlueskyVideoView(
         player.release()
         this.player = null
         this.playerView.player = null
-        this.isLoading = false
     }
 
     override fun onAttachedToWindow() {
