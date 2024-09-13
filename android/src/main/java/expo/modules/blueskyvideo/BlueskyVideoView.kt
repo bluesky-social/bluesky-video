@@ -320,9 +320,7 @@ class BlueskyVideoView(
             .apply {
                 repeatMode = ExoPlayer.REPEAT_MODE_ALL
                 playWhenReady = false
-                if (beginMuted) {
-                    volume = 0f
-                }
+                volume = 0f
                 addListener(
                     object : Player.Listener {
                         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -332,6 +330,9 @@ class BlueskyVideoView(
                                     if (view.autoplay || view.ignoreAutoplay) {
                                         view.isLoading = false
                                         view.play()
+                                        if (!view.beginMuted) {
+                                            view.unmute()
+                                        }
                                     }
                                 }
                             }

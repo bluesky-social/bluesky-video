@@ -143,7 +143,6 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     self.ignoreAutoplay = false
 
     // Fire final events
-    self.mute()
     self.pause()
     self.isLoading = false
 
@@ -213,6 +212,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
         self.isLoading = false
         if self.autoplay || self.ignoreAutoplay {
           self.play()
+          
+          if !self.beginMuted {
+            self.unmute()
+          }
         }
       }
       if playerItem.status == AVPlayerItem.Status.failed {
