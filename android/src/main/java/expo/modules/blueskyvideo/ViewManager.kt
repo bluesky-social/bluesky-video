@@ -75,6 +75,10 @@ class ViewManager {
         }
 
         private fun setActiveView(view: BlueskyVideoView) {
+            if (this.currentlyActiveView != null) {
+                this.clearActiveView()
+            }
+
             val didSet = view.setIsCurrentlyActive(true)
             if (didSet) {
                 currentlyActiveView = view
