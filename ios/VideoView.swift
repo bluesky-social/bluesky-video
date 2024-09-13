@@ -80,7 +80,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     guard let url = url, self.player == nil else {
       return
     }
-    
+
     self.isLoading = true
 
     // Setup the view controller
@@ -128,7 +128,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     guard let player = self.player else {
       return
     }
-    
+
     self.ignoreAutoplay = false
 
     // Fire final events
@@ -250,7 +250,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       if context.isCancelled {
         return
       }
-      
+
       self.isFullscreen = false
       if self.enteredFullScreenMuted {
         self.mute()
