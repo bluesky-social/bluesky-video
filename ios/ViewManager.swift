@@ -96,6 +96,9 @@ class ViewManager: Manager<VideoView> {
   }
 
   func setActiveView(_ view: VideoView) {
+    if self.currentlyActiveView != nil {
+      self.clearActiveView()
+    }
     let didUpdate = view.setIsCurrentlyActive(active: true)
     if didUpdate {
       self.currentlyActiveView = view
