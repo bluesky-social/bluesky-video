@@ -5,7 +5,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private var pViewController: AVPlayerViewController?
   private var player: AVPlayer?
   private var periodicTimeObserver: Any?
-
+  
   // props
   var autoplay: Bool = true
   var url: URL?
@@ -78,6 +78,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   private var enteredFullScreenMuted = true
   private var ignoreAutoplay = false
+  private var areObserversAttached = false
 
   required init(appContext: AppContext? = nil) {
     self.pViewController = AVPlayerViewController()
@@ -116,17 +117,11 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     // Add observers to the player
     self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
-
-    // Get the player item and add it to the player
-    DispatchQueue.global(qos: .background).async { [weak self] in
-      let playerItem = AVPlayerItem(url: url)
-      playerItem.preferredForwardBufferDuration = 5
-
-      DispatchQueue.main.async {
-        player.replaceCurrentItem(with: playerItem)
-        self?.addObserversToPlayerItem(playerItem)
-      }
-    }
+    
+    let playerItem = AVPlayerItem(url: url)
+    playerItem.preferredForwardBufferDuration = 5
+    player.replaceCurrentItem(with: playerItem)
+    self.addObserversToPlayerItem(playerItem)
 
     pViewController.player = player
     self.addSubview(pViewController.view)
@@ -244,6 +239,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   }
 
   func addObserversToPlayerItem(_ playerItem: AVPlayerItem) {
+    self.areObserversAttached = true
     NotificationCenter.default.addObserver(self,
                                            selector: #selector(playerDidFinishPlaying),
                                            name: .AVPlayerItemDidPlayToEndTime,
