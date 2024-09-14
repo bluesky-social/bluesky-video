@@ -78,6 +78,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   private var enteredFullScreenMuted = true
   private var ignoreAutoplay = false
+  private var isDestroyed = true
 
   required init(appContext: AppContext? = nil) {
     self.pViewController = AVPlayerViewController()
@@ -91,7 +92,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     guard let url = url, self.player == nil else {
       return
     }
-
+    
+    self.isDestroyed = false
     self.isLoading = true
 
     // Setup the view controller
@@ -117,25 +119,27 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     // Add observers to the player
     self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
 
+    pViewController.player = player
+    self.addSubview(pViewController.view)
+
+    self.pViewController = pViewController
+    self.player = player
+    
     // Get the player item and add it to the player
     DispatchQueue.global(qos: .background).async { [weak self] in
       let playerItem = AVPlayerItem(url: url)
       playerItem.preferredForwardBufferDuration = 5
 
       DispatchQueue.main.async {
-        player.replaceCurrentItem(with: playerItem)
+        self?.player?.replaceCurrentItem(with: playerItem)
         self?.addObserversToPlayerItem(playerItem)
       }
     }
-
-    pViewController.player = player
-    self.addSubview(pViewController.view)
-
-    self.pViewController = pViewController
-    self.player = player
   }
 
   private func destroy() {
+    self.isDestroyed = true
+    
     guard let player = self.player else {
       return
     }
@@ -182,10 +186,6 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     } else {
       ViewManager.shared.add(self)
     }
-  }
-
-  deinit {
-    self.destroy()
   }
 
   // MARK: - observers
@@ -244,6 +244,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   }
 
   func addObserversToPlayerItem(_ playerItem: AVPlayerItem) {
+    if self.isDestroyed {
+      return
+    }
+    
     NotificationCenter.default.addObserver(self,
                                            selector: #selector(playerDidFinishPlaying),
                                            name: .AVPlayerItemDidPlayToEndTime,
