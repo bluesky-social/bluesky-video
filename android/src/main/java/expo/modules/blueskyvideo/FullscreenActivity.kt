@@ -16,9 +16,14 @@ class FullscreenActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val player = asscVideoView?.get()?.player ?: return
-
         super.onCreate(savedInstanceState)
+
+        val player = asscVideoView?.get()?.player
+
+        if (player == null) {
+            finish()
+            return
+        }
 
         this.window.setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN,

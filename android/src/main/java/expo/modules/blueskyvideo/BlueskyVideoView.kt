@@ -226,6 +226,8 @@ class BlueskyVideoView(
         }
     }
 
+    // Fullscreen handling
+
     fun enterFullscreen() {
         val currentActivity = this.appContext.currentActivity ?: return
 
@@ -281,6 +283,8 @@ class BlueskyVideoView(
         return true
     }
 
+    // Visibility
+
     fun getPositionOnScreen(): Rect? {
         if (!this.isShown) {
             return null
@@ -328,6 +332,7 @@ class BlueskyVideoView(
                 addListener(
                     object : Player.Listener {
                         override fun onPlaybackStateChanged(playbackState: Int) {
+                            super.onPlaybackStateChanged(playbackState)
                             when (playbackState) {
                                 ExoPlayer.STATE_READY -> {
                                     val view = this@BlueskyVideoView
@@ -353,5 +358,25 @@ class BlueskyVideoView(
     private fun removeProgressTracker() {
         this.progressTracker?.remove()
         this.progressTracker = null
+    }
+
+    // Layout Hack
+    // Code is borrowed from expo-video, which borrows it from react native...
+    // https://github.com/expo/expo/blob/f81c18237c3cd5f0aa2b4db31fdf5b865281cb71/packages/expo-video/android/src/main/java/expo/modules/video/VideoView.kt#L125
+    // https://github.com/facebook/react-native/blob/d19afc73f5048f81656d0b4424232ce6d69a6368/ReactAndroid/src/main/java/com/facebook/react/views/toolbar/ReactToolbar.java#L166
+    //
+    // Essentially, the resize mode does not work without this hack, and will sometimes simply show
+    // the video in a poorly scaled way.
+    private val mLayoutRunnable = Runnable {
+        measure(
+            MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY)
+        )
+        layout(left, top, right, bottom)
+    }
+
+    override fun requestLayout() {
+        super.requestLayout()
+        post(mLayoutRunnable)
     }
 }
