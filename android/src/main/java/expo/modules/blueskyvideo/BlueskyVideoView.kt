@@ -184,7 +184,6 @@ class BlueskyVideoView(
 
     private fun play() {
         this.addProgressTracker()
-        AudioFocusManager(appContext).requestAudioFocus()
         this.player?.play()
         this.isPlaying = true
     }
@@ -192,7 +191,6 @@ class BlueskyVideoView(
     private fun pause() {
         this.player?.pause()
         this.removeProgressTracker()
-        AudioFocusManager(appContext).abandonAudioFocus()
         this.isPlaying = false
     }
 
@@ -213,9 +211,11 @@ class BlueskyVideoView(
     private fun mute() {
         this.player?.volume = 0f
         this.isMuted = true
+        AudioFocusManager(appContext).abandonAudioFocus()
     }
 
     private fun unmute() {
+        AudioFocusManager(appContext).requestAudioFocus()
         this.player?.volume = 1f
         this.isMuted = false
     }
