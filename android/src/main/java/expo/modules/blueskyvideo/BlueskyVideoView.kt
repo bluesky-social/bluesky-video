@@ -211,11 +211,11 @@ class BlueskyVideoView(
     private fun mute() {
         this.player?.volume = 0f
         this.isMuted = true
-        AudioFocusManager(appContext).abandonAudioFocus()
+        BlueskyVideoModule.audioFocusManager.abandonAudioFocus()
     }
 
     private fun unmute() {
-        AudioFocusManager(appContext).requestAudioFocus()
+        BlueskyVideoModule.audioFocusManager.requestAudioFocus()
         this.player?.volume = 1f
         this.isMuted = false
     }

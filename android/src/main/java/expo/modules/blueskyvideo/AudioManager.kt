@@ -11,9 +11,7 @@ import expo.modules.kotlin.AppContext
 // Borrowed from https://github.com/expo/expo/blob/f81c18237c3cd5f0aa2b4db31fdf5b865281cb71/packages/expo-video/android/src/main/java/expo/modules/video/AudioFocusManager.kt
 @UnstableApi
 class AudioFocusManager(private val appContext: AppContext) : AudioManager.OnAudioFocusChangeListener {
-  companion object {
-    private var currentFocusRequest: AudioFocusRequest? = null
-  }
+  private var currentFocusRequest: AudioFocusRequest? = null
 
   private val audioManager by lazy {
     appContext.reactContext?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager

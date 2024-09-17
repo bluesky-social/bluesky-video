@@ -10,11 +10,19 @@ import expo.modules.kotlin.modules.ModuleDefinition
 
 @UnstableApi
 class BlueskyVideoModule : Module() {
+    companion object {
+        lateinit var audioFocusManager: AudioFocusManager
+    }
+
     private var wasPlayingPlayer: Player? = null
 
     override fun definition() =
         ModuleDefinition {
             Name("BlueskyVideo")
+
+            OnCreate {
+                audioFocusManager = AudioFocusManager(appContext)
+            }
 
             OnActivityEntersForeground {
                 val view = ViewManager.getActiveView() ?: return@OnActivityEntersForeground
