@@ -208,7 +208,7 @@ class BlueskyVideoView(
         }
     }
 
-    private fun mute() {
+    fun mute() {
         this.player?.volume = 0f
         this.isMuted = true
         BlueskyVideoModule.audioFocusManager.abandonAudioFocus()

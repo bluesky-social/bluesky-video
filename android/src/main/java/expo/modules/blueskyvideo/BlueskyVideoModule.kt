@@ -25,19 +25,20 @@ class BlueskyVideoModule : Module() {
             }
 
             OnActivityEntersForeground {
-                val view = ViewManager.getActiveView() ?: return@OnActivityEntersForeground
-                val player = view.player ?: return@OnActivityEntersForeground
-
-                if (player.isPlaying) {
-                    wasPlayingPlayer = player
-                    player.pause()
-                }
+                wasPlayingPlayer?.play()
+                wasPlayingPlayer = null
             }
 
             OnActivityEntersBackground {
-                val player = wasPlayingPlayer ?: return@OnActivityEntersBackground
-                player.play()
-                wasPlayingPlayer = null
+                ViewManager.getActiveView()?.let { view ->
+                    view.player?.let { player ->
+                        if (player.isPlaying) {
+                            view.mute()
+                            player.pause()
+                            wasPlayingPlayer = player
+                        }
+                    }
+                }
             }
 
             AsyncFunction("updateActiveVideoViewAsync") {
