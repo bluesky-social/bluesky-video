@@ -32,7 +32,7 @@ class BlueskyVideoModule : Module() {
             OnActivityEntersBackground {
                 ViewManager.getActiveView()?.let { view ->
                     view.player?.let { player ->
-                        if (player.isPlaying) {
+                        if (player.isPlaying && !view.isFullscreen) {
                             view.mute()
                             player.pause()
                             wasPlayingPlayer = player

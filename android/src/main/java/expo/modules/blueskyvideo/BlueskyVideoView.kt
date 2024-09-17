@@ -41,8 +41,8 @@ class BlueskyVideoView(
     var beginMuted = true
     var ignoreAutoplay = false
 
-    private var isFullscreen: Boolean = false
-        set(value) {
+    var isFullscreen: Boolean = false
+        private set(value) {
             field = value
             this.playerView.useController = value
         }
