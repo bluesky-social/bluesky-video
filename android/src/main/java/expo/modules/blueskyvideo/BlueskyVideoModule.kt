@@ -10,26 +10,35 @@ import expo.modules.kotlin.modules.ModuleDefinition
 
 @UnstableApi
 class BlueskyVideoModule : Module() {
+    companion object {
+        lateinit var audioFocusManager: AudioFocusManager
+    }
+
     private var wasPlayingPlayer: Player? = null
 
     override fun definition() =
         ModuleDefinition {
             Name("BlueskyVideo")
 
-            OnActivityEntersForeground {
-                val view = ViewManager.getActiveView() ?: return@OnActivityEntersForeground
-                val player = view.player ?: return@OnActivityEntersForeground
+            OnCreate {
+                audioFocusManager = AudioFocusManager(appContext)
+            }
 
-                if (player.isPlaying) {
-                    wasPlayingPlayer = player
-                    player.pause()
-                }
+            OnActivityEntersForeground {
+                wasPlayingPlayer?.play()
+                wasPlayingPlayer = null
             }
 
             OnActivityEntersBackground {
-                val player = wasPlayingPlayer ?: return@OnActivityEntersBackground
-                player.play()
-                wasPlayingPlayer = null
+                ViewManager.getActiveView()?.let { view ->
+                    view.player?.let { player ->
+                        if (player.isPlaying && !view.isFullscreen) {
+                            view.mute()
+                            player.pause()
+                            wasPlayingPlayer = player
+                        }
+                    }
+                }
             }
 
             AsyncFunction("updateActiveVideoViewAsync") {
