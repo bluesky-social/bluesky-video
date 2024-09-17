@@ -1,6 +1,6 @@
 {
   "name": "@haileyok/bluesky-video",
-  "version": "0.1.9-alpha.3",
+  "version": "0.1.9-alpha.4",
   "description": "A video player library for Bluesky",
   "main": "build/index.js",
   "types": "build/index.d.ts",
