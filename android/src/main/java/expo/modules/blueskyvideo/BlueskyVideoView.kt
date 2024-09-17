@@ -138,7 +138,6 @@ class BlueskyVideoView(
             return
         }
 
-
         this.isLoading = true
 
         val player = this.createExoPlayer()
@@ -369,13 +368,14 @@ class BlueskyVideoView(
     //
     // Essentially, the resize mode does not work without this hack, and will sometimes simply show
     // the video in a poorly scaled way.
-    private val mLayoutRunnable = Runnable {
-        measure(
-            MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
-            MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY)
-        )
-        layout(left, top, right, bottom)
-    }
+    private val mLayoutRunnable =
+        Runnable {
+            measure(
+                MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY),
+            )
+            layout(left, top, right, bottom)
+        }
 
     override fun requestLayout() {
         super.requestLayout()
