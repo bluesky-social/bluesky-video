@@ -77,6 +77,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private let onError = EventDispatcher()
 
   private var enteredFullScreenMuted = true
+  private var enteredFullScreenWithIdleTimerDisabled = false
   private var ignoreAutoplay = false
   private var isDestroyed = true
 
@@ -274,6 +275,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
         self.mute()
       }
       self.play()
+      if !self.enteredFullScreenWithIdleTimerDisabled {
+        UIApplication.shared.isIdleTimerDisabled = false
+      }
     }
   }
 
@@ -345,7 +349,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
   }
 
-  func enterFullscreen() {
+  func enterFullscreen(keepDisplayOn: Bool) {
     guard let pViewController = self.pViewController,
           !isFullscreen else {
       return
@@ -359,6 +363,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       self.enteredFullScreenMuted = self.player?.isMuted ?? true
       self.unmute()
       self.isFullscreen = true
+      self.enteredFullScreenWithIdleTimerDisabled = UIApplication.shared.isIdleTimerDisabled
+      if keepDisplayOn {
+        UIApplication.shared.isIdleTimerDisabled = true
+      }
     }
   }
 }
