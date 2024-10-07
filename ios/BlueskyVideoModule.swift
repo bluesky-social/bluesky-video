@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import AVKit
 
 public class BlueskyVideoModule: Module {
   private var wasPlayingPlayer: AVPlayer?
