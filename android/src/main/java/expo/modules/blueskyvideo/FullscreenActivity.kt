@@ -30,6 +30,12 @@ class FullscreenActivity : AppCompatActivity() {
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
         )
 
+        val keepDisplayOn = this.getIntent().getBooleanExtra("keepDisplayOn", false)
+
+        if (keepDisplayOn) {
+            this.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+
         // Update the player viewz
         val playerView =
             PlayerView(this).apply {

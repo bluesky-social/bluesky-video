@@ -63,8 +63,8 @@ public class BlueskyVideoModule: Module {
         view.toggleMuted()
       }
 
-      AsyncFunction("enterFullscreen") { (view: VideoView) in
-        view.enterFullscreen()
+      AsyncFunction("enterFullscreen") { (view: VideoView, keepDisplayOn: Bool) in
+        view.enterFullscreen(keepDisplayOn)
       }
     }
   }

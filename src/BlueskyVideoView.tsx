@@ -22,8 +22,8 @@ export class BlueskyVideoView extends React.Component<BlueskyVideoViewProps> {
     this.ref.current?.toggleMuted()
   }
 
-  enterFullscreen = () => {
-    this.ref.current?.enterFullscreen()
+  enterFullscreen = (keepDisplayOn?: boolean) => {
+    this.ref.current?.enterFullscreen(keepDisplayOn ?? false)
   }
 
   render() {

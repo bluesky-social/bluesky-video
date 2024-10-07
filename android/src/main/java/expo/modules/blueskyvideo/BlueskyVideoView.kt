@@ -229,7 +229,7 @@ class BlueskyVideoView(
 
     // Fullscreen handling
 
-    fun enterFullscreen() {
+    fun enterFullscreen(keepDisplayOn: Boolean) {
         val currentActivity = this.appContext.currentActivity ?: return
 
         this.enteredFullscreenMuteState = this.isMuted
@@ -246,6 +246,7 @@ class BlueskyVideoView(
 
         // create the intent and give it a view
         val intent = Intent(context, FullscreenActivity::class.java)
+        intent.putExtra("keepDisplayOn", keepDisplayOn)
         FullscreenActivity.asscVideoView = WeakReference(this)
 
         // fire the fullscreen event and launch the intent

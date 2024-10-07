@@ -7,7 +7,10 @@ import {
   Platform,
   Pressable,
   SafeAreaView,
-  View
+  View,
+  Text,
+  Switch,
+  SwitchChangeEvent
 } from 'react-native'
 
 import {SAMPLE_VIDEOS} from './sampleVideos'
@@ -17,12 +20,22 @@ export default function App() {
     return [...SAMPLE_VIDEOS, ...SAMPLE_VIDEOS]
   }, [])
 
-  const renderItem = React.useCallback(({item}: ListRenderItemInfo<string>) => {
-    return <Player url={item} />
-  }, [])
+  const [fullscreenKeepDisplayOn, setFullscreenKeepDisplayOn] = React.useState<boolean>(false);
+  const toggleFullscreenKeepDisplayOn = React.useCallback((event: SwitchChangeEvent) => {
+    setFullscreenKeepDisplayOn(v => !v);
+  }, [setFullscreenKeepDisplayOn]);
+
+  const renderItem = React.useCallback(({item, index}: ListRenderItemInfo<string>) => {
+    return <Player url={item} num={index + 1} fullscreenKeepDisplayOn={fullscreenKeepDisplayOn} />
+  }, [fullscreenKeepDisplayOn])
 
   return (
     <SafeAreaView style={{flex: 1}}>
+      <Text style={{ fontWeight: 'bold' }}>Options</Text>
+      <View style={{ flexDirection: 'row' }}>
+        <Text>Keep display on when fullscreen</Text>
+        <Switch onChange={toggleFullscreenKeepDisplayOn} value={fullscreenKeepDisplayOn} />
+      </View>
       <View style={{flex: 1}}>
         <FlatList
           data={data}
@@ -38,18 +51,19 @@ export default function App() {
   )
 }
 
-function Player({url}: {url: string}) {
+function Player({url, num, fullscreenKeepDisplayOn}: {url: string, num: number, fullscreenKeepDisplayOn: boolean}) {
   const ref = React.useRef<BlueskyVideoView>(null)
 
   const onPress = () => {
     console.log('press')
-    ref.current?.enterFullscreen()
+    ref.current?.enterFullscreen(fullscreenKeepDisplayOn)
   }
 
   return (
     <Pressable
       style={{backgroundColor: 'blue', height: 300}}
       onPress={Platform.OS === 'ios' ? onPress : undefined}>
+      <Text>Video: {num}</Text>
       <BlueskyVideoView
         url={url}
         autoplay
