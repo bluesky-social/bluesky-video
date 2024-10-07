@@ -5,7 +5,7 @@ public class BlueskyVideoModule: Module {
 
   public func definition() -> ModuleDefinition {
     Name("BlueskyVideo")
-    
+
     OnCreate {
       AudioManagement.shared.setPlayingVideo(false)
     }
@@ -50,7 +50,7 @@ public class BlueskyVideoModule: Module {
       Prop("beginMuted") { (view: VideoView, prop: Bool) in
         view.beginMuted = prop
       }
-      
+
       Prop("forceTakeover") { (view: VideoView, prop: Bool) in
         view.forceTakeover = prop
       }

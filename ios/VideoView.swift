@@ -56,7 +56,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       }
     }
   }
-  
+
   var forceTakeover: Bool = false {
     didSet {
       if forceTakeover == oldValue {
@@ -93,7 +93,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     guard let url = url, self.player == nil else {
       return
     }
-    
+
     self.isDestroyed = false
     self.isLoading = true
 
@@ -125,7 +125,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.pViewController = pViewController
     self.player = player
-    
+
     // Get the player item and add it to the player
     DispatchQueue.global(qos: .background).async { [weak self] in
       let playerItem = AVPlayerItem(url: url)
@@ -140,7 +140,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   private func destroy() {
     self.isDestroyed = true
-    
+
     guard let player = self.player else {
       return
     }
@@ -160,7 +160,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     // Remove any observers from the player item and nil the item
     if let playerItem = self.player?.currentItem {
       removeObserversFromPlayerItem(playerItem)
-    }    
+    }
 
     // Recycle the player and nil the player
     PlayerManager.shared.recyclePlayer(player)
@@ -213,7 +213,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
         self.isLoading = false
         if self.autoplay || self.ignoreAutoplay {
           self.play()
-          
+
           if !self.beginMuted {
             self.unmute()
           }
@@ -248,7 +248,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     if self.isDestroyed {
       return
     }
-    
+
     NotificationCenter.default.addObserver(self,
                                            selector: #selector(playerDidFinishPlaying),
                                            name: .AVPlayerItemDidPlayToEndTime,
