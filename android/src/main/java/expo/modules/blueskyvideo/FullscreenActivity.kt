@@ -62,7 +62,9 @@ class FullscreenActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        asscVideoView?.get()?.onExitFullscreen()
+        if (isChangingConfigurations() != true) {
+            asscVideoView?.get()?.onExitFullscreen()
+        }
         super.onDestroy()
     }
 }
