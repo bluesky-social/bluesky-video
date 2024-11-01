@@ -8,8 +8,19 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   // props
   var autoplay: Bool = true
-  var url: URL?
   var beginMuted = true
+  var url: URL? {
+    didSet {
+      if url == nil {
+        return
+      }
+
+      if self.isViewActive {
+        self.destroy()
+        self.setup()
+      }
+    }
+  }
 
   // controls
   private var isLoading: Bool = false {
@@ -175,6 +186,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     self.pViewController = nil
   }
 
+  override func didMoveToWindow() {
+    ViewManager.shared.add(self)
+  }
+
   override func willMove(toWindow newWindow: UIWindow?) {
     // Ignore anything that happens whenever we enter fullscreen. It's expected that the view will unmount here
     if self.isFullscreen {
@@ -184,8 +199,6 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     if newWindow == nil {
       ViewManager.shared.remove(self)
       self.destroy()
-    } else {
-      ViewManager.shared.add(self)
     }
   }
 
