@@ -155,17 +155,19 @@ class BlueskyVideoView(
 
     private fun destroy() {
         val player = this.player ?: return
+        val playerScope = this.playerScope!!
 
         this.isLoading = false
         this.ignoreAutoplay = false
 
         this.pause()
-
-        player.release()
         this.player = null
         this.playerView.player = null
-        this.playerScope?.cancel()
         this.playerScope = null
+        playerScope.launch {
+          player.release()
+          playerScope.cancel()
+        }
     }
 
     override fun onAttachedToWindow() {
