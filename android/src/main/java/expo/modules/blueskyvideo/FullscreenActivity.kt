@@ -53,18 +53,16 @@ class FullscreenActivity : AppCompatActivity() {
         playerView.player = player
         setContentView(playerView)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            ViewCompat.setOnApplyWindowInsetsListener(playerView) { view, insets ->
-                val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
-                view.setPadding(0, systemBarsInsets.top, 0, systemBarsInsets.bottom)
-                insets
-            }
+        ViewCompat.setOnApplyWindowInsetsListener(playerView) { view, insets ->
+            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            view.setPadding(0, systemBarsInsets.top, 0, systemBarsInsets.bottom)
+            insets
+        }
 
-            // 31 or higher
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                window.insetsController?.let {
-                    it.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_DEFAULT
-                }
+        // 31 or higher
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            window.insetsController?.let {
+                it.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_DEFAULT
             }
         } else {
             @Suppress("DEPRECATION")
