@@ -3,13 +3,12 @@ package expo.modules.blueskyvideo
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.view.View
 import android.view.ViewGroup
-import android.view.WindowInsets
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import java.lang.ref.WeakReference
@@ -33,34 +32,35 @@ class FullscreenActivity : AppCompatActivity() {
         // Enable edge-to-edge mode but keep navigation bar persistent
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        val playerView = PlayerView(this).apply {
-            setBackgroundColor(Color.BLACK)
-            setShowSubtitleButton(true)
-            setShowNextButton(false)
-            setShowPreviousButton(false)
-            setFullscreenButtonClickListener {
-                finish()
+        val playerView =
+            PlayerView(this).apply {
+                setBackgroundColor(Color.BLACK)
+                setShowSubtitleButton(true)
+                setShowNextButton(false)
+                setShowPreviousButton(false)
+                setFullscreenButtonClickListener {
+                    finish()
+                }
+                layoutParams =
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+                useController = true
+                controllerAutoShow = false
+                controllerHideOnTouch = true
             }
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            useController = true
-            controllerAutoShow = false
-            controllerHideOnTouch = true
-        }
         playerView.player = player
         setContentView(playerView)
 
-        // Adjust layout for system insets to accommodate persistent nav bar
         ViewCompat.setOnApplyWindowInsetsListener(playerView) { view, insets ->
-            val systemBarsInsets = insets.getInsets(WindowInsets.Type.systemBars())
+            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
             view.setPadding(0, systemBarsInsets.top, 0, systemBarsInsets.bottom)
             insets
         }
 
-        // Prevent hiding of the navigation bar
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        // 31 or higher
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             window.insetsController?.let {
                 it.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_DEFAULT
             }
