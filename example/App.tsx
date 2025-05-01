@@ -20,22 +20,42 @@ export default function App() {
     return [...SAMPLE_VIDEOS, ...SAMPLE_VIDEOS]
   }, [])
 
-  const [fullscreenKeepDisplayOn, setFullscreenKeepDisplayOn] = React.useState<boolean>(false);
-  const toggleFullscreenKeepDisplayOn = React.useCallback((event: SwitchChangeEvent) => {
-    setFullscreenKeepDisplayOn(v => !v);
-  }, [setFullscreenKeepDisplayOn]);
+  const [fullscreenKeepDisplayOn, setFullscreenKeepDisplayOn] =
+    React.useState<boolean>(false)
+  const toggleFullscreenKeepDisplayOn = React.useCallback(
+    (event: SwitchChangeEvent) => {
+      setFullscreenKeepDisplayOn(v => !v)
+    },
+    [setFullscreenKeepDisplayOn]
+  )
 
-  const renderItem = React.useCallback(({item, index}: ListRenderItemInfo<string>) => {
-    return <Player url={item} num={index + 1} fullscreenKeepDisplayOn={fullscreenKeepDisplayOn} />
-  }, [fullscreenKeepDisplayOn])
+  const renderItem = React.useCallback(
+    ({item, index}: ListRenderItemInfo<string>) => {
+      return (
+        <Player
+          url={item}
+          num={index + 1}
+          fullscreenKeepDisplayOn={fullscreenKeepDisplayOn}
+        />
+      )
+    },
+    [fullscreenKeepDisplayOn]
+  )
+
+  // @ts-ignore
+  const uiManager = global?.nativeFabricUIManager ? 'Fabric' : 'Paper'
 
   return (
     <SafeAreaView style={{flex: 1}}>
-      <Text style={{ fontWeight: 'bold' }}>Options</Text>
-      <View style={{ flexDirection: 'row' }}>
+      <Text style={{fontWeight: 'bold'}}>Options</Text>
+      <View style={{flexDirection: 'row'}}>
         <Text>Keep display on when fullscreen</Text>
-        <Switch onChange={toggleFullscreenKeepDisplayOn} value={fullscreenKeepDisplayOn} />
+        <Switch
+          onChange={toggleFullscreenKeepDisplayOn}
+          value={fullscreenKeepDisplayOn}
+        />
       </View>
+      <Text style={{height: 20}}>Renderer: {uiManager}</Text>
       <View style={{flex: 1}}>
         <FlatList
           data={data}
@@ -51,7 +71,15 @@ export default function App() {
   )
 }
 
-function Player({url, num, fullscreenKeepDisplayOn}: {url: string, num: number, fullscreenKeepDisplayOn: boolean}) {
+function Player({
+  url,
+  num,
+  fullscreenKeepDisplayOn
+}: {
+  url: string
+  num: number
+  fullscreenKeepDisplayOn: boolean
+}) {
   const ref = React.useRef<BlueskyVideoView>(null)
 
   const onPress = () => {
