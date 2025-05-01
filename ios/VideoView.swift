@@ -47,7 +47,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   }
 
   private var isViewActive: Bool = false {
-    didSet { 
+    didSet {
       if isViewActive == oldValue {
         return
       }

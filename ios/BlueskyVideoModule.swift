@@ -37,7 +37,7 @@ public class BlueskyVideoModule: Module {
         "onMutedChange",
         "onStatusChange",
         "onTimeRemainingChange",
-        "onFullScreenChange",
+        "onFullscreenChange",
         "onError"
       ])
 
