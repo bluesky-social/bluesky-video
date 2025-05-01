@@ -45,6 +45,12 @@ class BlueskyVideoView(
         private set(value) {
             field = value
             this.playerView.useController = value
+
+            onStatusChange(
+                mapOf(
+                    "isFullscreen" to value,
+                )
+            )
         }
 
     private var isPlaying: Boolean = false
@@ -105,6 +111,7 @@ class BlueskyVideoView(
     private val onPlayerPress by EventDispatcher()
     private val onStatusChange by EventDispatcher()
     private val onTimeRemainingChange by EventDispatcher()
+    private val onFullscreenChange by EventDispatcher()
     private val onError by EventDispatcher()
 
     private var enteredFullscreenMuteState = true
