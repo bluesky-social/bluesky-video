@@ -11,7 +11,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   var beginMuted = true
   var url: URL? {
     didSet {
-      if url == nil {
+      if url == nil || url == oldValue {
         return
       }
 
