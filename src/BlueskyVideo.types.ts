@@ -18,6 +18,9 @@ export type BlueskyVideoViewProps = {
   onTimeRemainingChange?: (
     e: NativeSyntheticEvent<{timeRemaining: number}>
   ) => void
+  onFullscreenChange?: (
+    e: NativeSyntheticEvent<{isFullscreen: boolean}>
+  ) => void
   onError?: (e: NativeSyntheticEvent<{error: string}>) => void
   style?: StyleProp<ViewStyle>
 }

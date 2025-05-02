@@ -11,7 +11,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   var beginMuted = true
   var url: URL? {
     didSet {
-      if url == nil {
+      if url == nil || url == oldValue {
         return
       }
 
@@ -65,6 +65,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       } else {
         self.pViewController?.showsPlaybackControls = false
       }
+      
+      self.onFullscreenChange([
+        "isFullscreen": isFullscreen
+      ])
     }
   }
 
@@ -85,6 +89,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private let onMutedChange = EventDispatcher()
   private let onStatusChange = EventDispatcher()
   private let onTimeRemainingChange = EventDispatcher()
+  private let onFullscreenChange = EventDispatcher()
   private let onError = EventDispatcher()
 
   private var enteredFullScreenMuted = true
