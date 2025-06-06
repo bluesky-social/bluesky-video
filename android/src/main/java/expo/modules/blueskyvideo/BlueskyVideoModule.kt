@@ -12,9 +12,15 @@ import expo.modules.kotlin.modules.ModuleDefinition
 class BlueskyVideoModule : Module() {
     companion object {
         lateinit var audioFocusManager: AudioFocusManager
+        var isAppInBackground: Boolean = false
     }
 
-    private var wasPlayingPlayer: Player? = null
+    private var savedPlayerStates: MutableMap<BlueskyVideoView, PlayerState> = mutableMapOf()
+
+    data class PlayerState(
+        val isPlaying: Boolean,
+        val isMuted: Boolean
+    )
 
     override fun definition() =
         ModuleDefinition {
@@ -25,18 +31,34 @@ class BlueskyVideoModule : Module() {
             }
 
             OnActivityEntersForeground {
-                wasPlayingPlayer?.play()
-                wasPlayingPlayer = null
+                isAppInBackground = false
+
+                savedPlayerStates.entries.toList().forEach { (view, state) ->
+                    view.restorePlayerState(state)
+                }
+                savedPlayerStates.clear()
+
+                ViewManager.onAppForegrounded()
             }
 
             OnActivityEntersBackground {
-                ViewManager.getActiveView()?.let { view ->
-                    view.player?.let { player ->
-                        if (player.isPlaying && !view.isFullscreen) {
-                            view.mute()
-                            player.pause()
-                            wasPlayingPlayer = player
+                isAppInBackground = true
+                ViewManager.onAppBackgrounded()
+
+                // Don't destroy players if any view is in fullscreen mode
+                val hasFullscreenView = ViewManager.getAllViews().any { it.isFullscreen }
+                if (!hasFullscreenView) {
+                    savedPlayerStates.clear()
+
+                    ViewManager.getAllViews().forEach { view ->
+                        view.player?.let { player ->
+                            val state = PlayerState(
+                                isPlaying = player.isPlaying,
+                                isMuted = view.isMuted
+                            )
+                            savedPlayerStates[view] = state
                         }
+                        view.destroyForBackground()
                     }
                 }
             }

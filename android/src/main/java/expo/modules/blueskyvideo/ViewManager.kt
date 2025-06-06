@@ -9,6 +9,7 @@ class ViewManager {
         private val views = mutableSetOf<BlueskyVideoView>()
         private var currentlyActiveView: BlueskyVideoView? = null
         private var prevCount = 0
+        private var isAppInBackground = false
 
         fun addView(view: BlueskyVideoView) {
             views.add(view)
@@ -24,6 +25,11 @@ class ViewManager {
         }
 
         fun updateActiveView() {
+            // Don't update active view when app is backgrounded
+            if (isAppInBackground) {
+                return
+            }
+            
             var activeView: BlueskyVideoView? = null
             val count = views.count()
 
@@ -86,5 +92,17 @@ class ViewManager {
         }
 
         fun getActiveView(): BlueskyVideoView? = currentlyActiveView
+        
+        fun getAllViews(): Set<BlueskyVideoView> = views.toSet()
+        
+        fun onAppBackgrounded() {
+            isAppInBackground = true
+            clearActiveView()
+        }
+        
+        fun onAppForegrounded() {
+            isAppInBackground = false
+            updateActiveView()
+        }
     }
 }
