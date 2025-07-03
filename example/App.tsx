@@ -117,7 +117,7 @@ function Player({
       style={{
         backgroundColor: 'blue',
         height: 300,
-        marginBottom: gaps ? 150 : 0
+        marginBottom: gaps ? 300 : 0
       }}
       onPress={Platform.OS === 'ios' ? onPress : undefined}>
       <Text>Video: {num}</Text>
