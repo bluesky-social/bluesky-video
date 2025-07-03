@@ -1,5 +1,5 @@
-import ExpoModulesCore
 import AVFoundation
+import ExpoModulesCore
 
 class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private var pViewController: AVPlayerViewController?
@@ -65,7 +65,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       } else {
         self.pViewController?.showsPlaybackControls = false
       }
-      
+
       self.onFullscreenChange([
         "isFullscreen": isFullscreen
       ])
@@ -214,14 +214,17 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     self.play()
   }
 
-  override func observeValue(forKeyPath keyPath: String?,
-                             of object: Any?,
-                             change: [NSKeyValueChangeKey: Any]?,
-                             context: UnsafeMutableRawPointer?) {
+  override func observeValue(
+    forKeyPath keyPath: String?,
+    of object: Any?,
+    change: [NSKeyValueChangeKey: Any]?,
+    context: UnsafeMutableRawPointer?
+  ) {
 
     // This shouldn't happen, but just guard nil values
     guard let player = self.player,
-          let playerItem = player.currentItem else {
+      let playerItem = player.currentItem
+    else {
       return
     }
 
@@ -240,18 +243,21 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       if playerItem.status == AVPlayerItem.Status.failed {
         self.onError([
           "error": "Failed to load video",
-          "errorDescription": playerItem.error?.localizedDescription ?? ""
+          "errorDescription": playerItem.error?.localizedDescription ?? "",
         ])
       }
     }
   }
 
   func createPeriodicTimeObserver(_ player: AVPlayer) -> Any? {
-    let interval = CMTime(seconds: 1,
-                          preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+    let interval = CMTime(
+      seconds: 1,
+      preferredTimescale: CMTimeScale(NSEC_PER_SEC))
 
-    return player.addPeriodicTimeObserver(forInterval: interval,
-                                                               queue: .main) { [weak self] time in
+    return player.addPeriodicTimeObserver(
+      forInterval: interval,
+      queue: .main
+    ) { [weak self] time in
       guard let duration = self?.player?.currentItem?.duration else {
         return
       }
@@ -267,22 +273,27 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       return
     }
 
-    NotificationCenter.default.addObserver(self,
-                                           selector: #selector(playerDidFinishPlaying),
-                                           name: .AVPlayerItemDidPlayToEndTime,
-                                           object: playerItem)
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(playerDidFinishPlaying),
+      name: .AVPlayerItemDidPlayToEndTime,
+      object: playerItem)
     playerItem.addObserver(self, forKeyPath: "status", options: [.old, .new], context: nil)
   }
 
   func removeObserversFromPlayerItem(_ playerItem: AVPlayerItem) {
-    NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: playerItem)
+    NotificationCenter.default.removeObserver(
+      self, name: .AVPlayerItemDidPlayToEndTime, object: playerItem)
     playerItem.removeObserver(self, forKeyPath: "status")
   }
 
   // MARK: - AVPlayerViewControllerDelegate
 
-  func playerViewController(_ playerViewController: AVPlayerViewController,
-                            willEndFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator) {
+  func playerViewController(
+    _ playerViewController: AVPlayerViewController,
+    willEndFullScreenPresentationWithAnimationCoordinator coordinator:
+      UIViewControllerTransitionCoordinator
+  ) {
     coordinator.animate(alongsideTransition: nil) { context in
       if context.isCancelled {
         return
@@ -369,7 +380,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   func enterFullscreen(keepDisplayOn: Bool) {
     guard let pViewController = self.pViewController,
-          !isFullscreen else {
+      !isFullscreen
+    else {
       return
     }
 
@@ -401,17 +413,25 @@ extension UIView {
   }
 
   func isViewableEnough() -> Bool {
+    return calculateVisibilityPercentage() >= 0.5
+  }
+
+  func calculateVisibilityPercentage() -> CGFloat {
     guard let window = self.window else {
-      return false
+      return 0
     }
 
-    let viewFrameOnScreen = self.convert(self.bounds, to: window)
-    let screenBounds = window.bounds
-    let intersection = viewFrameOnScreen.intersection(screenBounds)
+    let position = self.convert(self.bounds, to: window)
 
-    let viewHeight = viewFrameOnScreen.height
-    let intersectionHeight = intersection.height
+    // Create screen bounds with 100px top margin to account for fixed header
+    var screenBounds = window.bounds
+    screenBounds.origin.y += 100
+    screenBounds.size.height -= 100
 
-    return intersectionHeight >= 0.5 * viewHeight
+    let intersection = position.intersection(screenBounds)
+    let viewArea = position.width * position.height
+    let visibleArea = intersection.width * intersection.height
+
+    return viewArea > 0 ? visibleArea / viewArea : 0
   }
 }
