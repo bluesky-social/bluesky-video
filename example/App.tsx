@@ -106,6 +106,7 @@ function Player({
   gaps: boolean
 }) {
   const ref = React.useRef<BlueskyVideoView>(null)
+  const [active, setActive] = React.useState(false)
 
   const onPress = () => {
     console.log('press')
@@ -115,9 +116,9 @@ function Player({
   return (
     <Pressable
       style={{
-        backgroundColor: 'blue',
+        backgroundColor: active ? 'green' : 'gray',
         height: 300,
-        marginBottom: gaps ? 300 : 0
+        marginBottom: gaps ? 400 : 0
       }}
       onPress={Platform.OS === 'ios' ? onPress : undefined}>
       <Text>Video: {num}</Text>
@@ -130,6 +131,10 @@ function Player({
         }}
         onStatusChange={e => {
           console.log('status', e.nativeEvent.status)
+        }}
+        onActiveChange={e => {
+          console.log('active', e.nativeEvent.isActive)
+          setActive(e.nativeEvent.isActive)
         }}
         onLoadingChange={e => {
           console.log('loading', e.nativeEvent.isLoading)
