@@ -46,14 +46,11 @@ class ViewManager: Manager<VideoView> {
         }
 
         var mostVisibleView: VideoView?
-        var mostVisiblePosition: CGRect?
+        var highestVisibilityPercentage: CGFloat = 0
+        var topMostPosition: CGFloat = CGFloat.greatestFiniteMagnitude
 
         views.forEach { view in
           guard let view = view as? VideoView else {
-            return
-          }
-
-          if !view.isViewableEnough() {
             return
           }
 
@@ -61,15 +58,19 @@ class ViewManager: Manager<VideoView> {
             return
           }
 
-          if position.minY >= 150 {
-            if mostVisiblePosition == nil {
-              mostVisiblePosition = position
-            }
+          let visibilityPercentage = self.calculateVisibilityPercentage(
+            view: view, position: position)
 
-            if let unwrapped = mostVisiblePosition,
-               position.minY <= unwrapped.minY {
+          // Only consider videos that meet the minimum visibility threshold
+          if visibilityPercentage >= 0.5 {
+            // Pick the most visible video, or if tied, the topmost one
+            if visibilityPercentage > highestVisibilityPercentage
+              || (visibilityPercentage == highestVisibilityPercentage
+                && position.minY < topMostPosition)
+            {
               mostVisibleView = view
-              mostVisiblePosition = position
+              highestVisibilityPercentage = visibilityPercentage
+              topMostPosition = position.minY
             }
           }
         }
@@ -86,6 +87,23 @@ class ViewManager: Manager<VideoView> {
         self.setActiveView(view)
       }
     }
+  }
+
+  private func calculateVisibilityPercentage(view: VideoView, position: CGRect) -> CGFloat {
+    guard let window = view.window else {
+      return 0
+    }
+
+    // Create screen bounds with 150px top margin to account for fixed header
+    var screenBounds = window.bounds
+    screenBounds.origin.y += 100
+    screenBounds.size.height -= 100
+
+    let intersection = position.intersection(screenBounds)
+    let viewArea = position.width * position.height
+    let visibleArea = intersection.width * intersection.height
+
+    return viewArea > 0 ? visibleArea / viewArea : 0
   }
 
   private func clearActiveView() {

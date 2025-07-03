@@ -22,11 +22,19 @@ export default function App() {
 
   const [fullscreenKeepDisplayOn, setFullscreenKeepDisplayOn] =
     React.useState<boolean>(false)
+  const [gaps, setGaps] = React.useState<boolean>(false)
   const toggleFullscreenKeepDisplayOn = React.useCallback(
     (event: SwitchChangeEvent) => {
       setFullscreenKeepDisplayOn(v => !v)
     },
     [setFullscreenKeepDisplayOn]
+  )
+
+  const toggleGaps = React.useCallback(
+    (event: SwitchChangeEvent) => {
+      setGaps(v => !v)
+    },
+    [setGaps]
   )
 
   const renderItem = React.useCallback(
@@ -36,10 +44,11 @@ export default function App() {
           url={item}
           num={index + 1}
           fullscreenKeepDisplayOn={fullscreenKeepDisplayOn}
+          gaps={gaps}
         />
       )
     },
-    [fullscreenKeepDisplayOn]
+    [fullscreenKeepDisplayOn, gaps]
   )
 
   // @ts-ignore
@@ -48,7 +57,21 @@ export default function App() {
   return (
     <SafeAreaView style={{flex: 1}}>
       <Text style={{fontWeight: 'bold'}}>Options</Text>
-      <View style={{flexDirection: 'row'}}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+        <Text>Add gaps between videos</Text>
+        <Switch onChange={toggleGaps} value={gaps} />
+      </View>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
         <Text>Keep display on when fullscreen</Text>
         <Switch
           onChange={toggleFullscreenKeepDisplayOn}
@@ -74,11 +97,13 @@ export default function App() {
 function Player({
   url,
   num,
-  fullscreenKeepDisplayOn
+  fullscreenKeepDisplayOn,
+  gaps
 }: {
   url: string
   num: number
   fullscreenKeepDisplayOn: boolean
+  gaps: boolean
 }) {
   const ref = React.useRef<BlueskyVideoView>(null)
 
@@ -89,7 +114,11 @@ function Player({
 
   return (
     <Pressable
-      style={{backgroundColor: 'blue', height: 300}}
+      style={{
+        backgroundColor: 'blue',
+        height: 300,
+        marginBottom: gaps ? 150 : 0
+      }}
       onPress={Platform.OS === 'ios' ? onPress : undefined}>
       <Text>Video: {num}</Text>
       <BlueskyVideoView
