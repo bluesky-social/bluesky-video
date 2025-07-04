@@ -46,14 +46,11 @@ class ViewManager: Manager<VideoView> {
         }
 
         var mostVisibleView: VideoView?
-        var mostVisiblePosition: CGRect?
+        var highestVisibilityPercentage: CGFloat = 0
+        var topMostPosition: CGFloat = CGFloat.greatestFiniteMagnitude
 
         views.forEach { view in
           guard let view = view as? VideoView else {
-            return
-          }
-
-          if !view.isViewableEnough() {
             return
           }
 
@@ -61,15 +58,18 @@ class ViewManager: Manager<VideoView> {
             return
           }
 
-          if position.minY >= 150 {
-            if mostVisiblePosition == nil {
-              mostVisiblePosition = position
-            }
+          let visibilityPercentage = view.calculateVisibilityPercentage()
 
-            if let unwrapped = mostVisiblePosition,
-               position.minY <= unwrapped.minY {
+          // Only consider videos that meet the minimum visibility threshold
+          if visibilityPercentage >= 0.5 {
+            // Pick the most visible video, or if tied, the topmost one
+            if visibilityPercentage > highestVisibilityPercentage
+              || (visibilityPercentage == highestVisibilityPercentage
+                && position.minY < topMostPosition)
+            {
               mostVisibleView = view
-              mostVisiblePosition = position
+              highestVisibilityPercentage = visibilityPercentage
+              topMostPosition = position.minY
             }
           }
         }
@@ -87,6 +87,7 @@ class ViewManager: Manager<VideoView> {
       }
     }
   }
+
 
   private func clearActiveView() {
     if let currentlyActiveView = self.currentlyActiveView {
