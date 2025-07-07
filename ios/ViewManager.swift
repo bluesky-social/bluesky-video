@@ -100,23 +100,55 @@ class ViewManager: Manager<VideoView> {
         return
       }
 
-      // Clear current state
-      self.clearActiveView()
-      self.clearStagedViews()
-
-      // Destroy players for views that are no longer in top 3
+      // Calculate which views need state changes
       let newTopViews = Set([newActiveView].compactMap { $0 } + newStagedViews)
+      
+      // Destroy players for views that are no longer in top 3
       self.destroyViewsNotInSet(newTopViews)
 
+      // Build complete transition plan to avoid intermediate states
+      let newStagedSet = Set(newStagedViews)
+      let currentStagedSet = Set(self.stagedViews)
+      
+      // Handle old active view
+      if let oldActive = self.currentlyActiveView, oldActive != newActiveView {
+        if newStagedSet.contains(oldActive) {
+          // Active -> Staged: transition directly
+          _ = oldActive.transitionToStaged()
+        } else {
+          // Active -> Inactive: transition to inactive
+          _ = oldActive.transitionToInactive()
+        }
+      }
+      
+      // Handle old staged views
+      for oldStaged in currentStagedSet {
+        if oldStaged == newActiveView {
+          // Staged -> Active: will be handled below
+          continue
+        } else if !newStagedSet.contains(oldStaged) {
+          // Staged -> Inactive: transition to inactive
+          _ = oldStaged.transitionToInactive()
+        }
+        // Staged -> Staged: no change needed
+      }
+      
       // Set new active view
-      if let activeView = newActiveView {
-        self.setActiveView(activeView)
+      if let newActive = newActiveView, newActive != self.currentlyActiveView {
+        self.currentlyActiveView = newActive
+        _ = newActive.transitionToActive()
+      } else if newActiveView == nil {
+        self.currentlyActiveView = nil
       }
-
-      // Set new staged views
-      for stagedView in newStagedViews {
-        self.setStagedView(stagedView)
+      
+      // Set new staged views (only for newly staged ones)
+      for newStaged in newStagedViews {
+        if !currentStagedSet.contains(newStaged) && newStaged != self.currentlyActiveView {
+          _ = newStaged.transitionToStaged()
+        }
       }
+      
+      self.stagedViews = newStagedViews
     }
   }
 
