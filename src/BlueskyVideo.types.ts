@@ -8,7 +8,7 @@ export type BlueskyVideoViewProps = {
   accessibilityHint?: string
   accessibilityLabel?: string
 
-  onActiveChange?: (e: NativeSyntheticEvent<{state: 'inactive' | 'staged' | 'active'}>) => void
+  onActiveChange?: (e: NativeSyntheticEvent<{isActive: boolean; state: 'inactive' | 'staged' | 'active'}>) => void
   onLoadingChange?: (e: NativeSyntheticEvent<{isLoading: boolean}>) => void
   onMutedChange?: (e: NativeSyntheticEvent<{isMuted: boolean}>) => void
   onPlayerPress?: () => void

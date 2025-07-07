@@ -86,9 +86,11 @@ class BlueskyVideoView(
     private var isViewActive: Boolean = false
         set(value) {
             field = value
+            val state = if (value) "active" else "inactive"
             onActiveChange(
                 mapOf(
-                    "state" to if (value) "active" else "inactive",
+                    "isActive" to (state == "active"),
+                    "state" to state,
                 ),
             )
         }

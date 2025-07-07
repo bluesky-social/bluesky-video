@@ -121,6 +121,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
     
     self.onActiveChange([
+      "isActive": state == "active",
       "state": state
     ])
   }
