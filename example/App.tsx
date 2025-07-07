@@ -106,7 +106,7 @@ function Player({
   gaps: boolean
 }) {
   const ref = React.useRef<BlueskyVideoView>(null)
-  const [active, setActive] = React.useState(false)
+  const [active, setActive] = React.useState('inactive')
 
   const onPress = () => {
     console.log('press')
@@ -116,7 +116,12 @@ function Player({
   return (
     <Pressable
       style={{
-        backgroundColor: active ? 'green' : 'gray',
+        backgroundColor:
+          active === 'active'
+            ? 'green'
+            : active === 'staged'
+              ? 'yellow'
+              : 'gray',
         height: 300,
         marginBottom: gaps ? 400 : 0
       }}
@@ -133,8 +138,8 @@ function Player({
           console.log('status', e.nativeEvent.status)
         }}
         onActiveChange={e => {
-          console.log('active', e.nativeEvent.isActive)
-          setActive(e.nativeEvent.isActive)
+          console.log('active', e.nativeEvent.state)
+          setActive(e.nativeEvent.state)
         }}
         onLoadingChange={e => {
           console.log('loading', e.nativeEvent.isLoading)

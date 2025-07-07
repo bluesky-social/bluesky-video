@@ -88,7 +88,7 @@ class BlueskyVideoView(
             field = value
             onActiveChange(
                 mapOf(
-                    "isActive" to value,
+                    "state" to if (value) "active" else "inactive",
                 ),
             )
         }
