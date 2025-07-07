@@ -46,8 +46,9 @@ class ViewManager: Manager<VideoView> {
         return
       }
 
-      // Collect all views with their visibility info
-      var visibleViews: [(view: VideoView, visibility: CGFloat, position: CGFloat)] = []
+      // Collect views that are eligible (on screen or below screen)
+      var eligibleViews: [(view: VideoView, visibility: CGFloat, position: CGFloat)] = []
+      let screenHeight = UIScreen.main.bounds.height
       
       views.forEach { view in
         guard let view = view as? VideoView else {
@@ -59,23 +60,25 @@ class ViewManager: Manager<VideoView> {
         }
 
         let visibilityPercentage = view.calculateVisibilityPercentage()
+        let isOnScreen = visibilityPercentage > 0
+        let isBelowScreen = position.minY >= screenHeight
 
-        // Only consider videos that have any visibility (>0%)
-        if visibilityPercentage > 0 {
-          visibleViews.append((view: view, visibility: visibilityPercentage, position: position.minY))
+        // Include videos that are on screen OR below screen (not above screen)
+        if isOnScreen || isBelowScreen {
+          eligibleViews.append((view: view, visibility: visibilityPercentage, position: position.minY))
         }
       }
 
       // Sort by visibility percentage (descending), then by position (ascending for topmost)
-      visibleViews.sort { first, second in
+      eligibleViews.sort { first, second in
         if first.visibility == second.visibility {
           return first.position < second.position
         }
         return first.visibility > second.visibility
       }
 
-      // Take the top 3 visible videos
-      let topViews = Array(visibleViews.prefix(3))
+      // Take the top 3 eligible videos
+      let topViews = Array(eligibleViews.prefix(3))
       
       // The most visible video (≥50%) becomes active, others become staged
       var newActiveView: VideoView?
