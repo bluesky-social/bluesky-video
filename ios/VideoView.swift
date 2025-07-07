@@ -64,7 +64,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
   }
 
-  private var isFullscreen: Bool = false {
+  var isFullscreen: Bool = false {
     didSet {
       if isFullscreen {
         self.pViewController?.showsPlaybackControls = isFullscreen

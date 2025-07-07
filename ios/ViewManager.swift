@@ -136,9 +136,24 @@ class ViewManager: Manager<VideoView> {
   }
 
   func setActiveView(_ view: VideoView) {
-    if self.currentlyActiveView != nil {
-      self.clearActiveView()
+    // If there's a current active view, demote it to staged (if there's room)
+    if let currentActive = self.currentlyActiveView, currentActive != view {
+      if self.stagedViews.count < 2 {
+        // Demote current active to staged
+        _ = currentActive.transitionToStaged()
+        self.stagedViews.append(currentActive)
+      } else {
+        // No room in staged, demote to inactive
+        _ = currentActive.transitionToInactive()
+      }
+      self.currentlyActiveView = nil
     }
+    
+    // Remove from staged views if this view was staged
+    if let index = self.stagedViews.firstIndex(of: view) {
+      self.stagedViews.remove(at: index)
+    }
+    
     let didUpdate = view.transitionToActive()
     if didUpdate {
       self.currentlyActiveView = view
@@ -159,6 +174,11 @@ class ViewManager: Manager<VideoView> {
     
     views.forEach { view in
       guard let view = view as? VideoView else {
+        return
+      }
+      
+      // Never destroy fullscreen videos
+      if view.isFullscreen {
         return
       }
       
