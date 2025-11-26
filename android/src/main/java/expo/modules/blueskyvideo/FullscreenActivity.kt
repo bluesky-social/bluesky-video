@@ -3,12 +3,12 @@ package expo.modules.blueskyvideo
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import java.lang.ref.WeakReference
@@ -18,6 +18,8 @@ class FullscreenActivity : AppCompatActivity() {
     companion object {
         var asscVideoView: WeakReference<BlueskyVideoView>? = null
     }
+
+    private lateinit var playerView: PlayerView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,10 +31,7 @@ class FullscreenActivity : AppCompatActivity() {
             return
         }
 
-        // Enable edge-to-edge mode but keep navigation bar persistent
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-
-        val playerView =
+        playerView =
             PlayerView(this).apply {
                 setBackgroundColor(Color.BLACK)
                 setShowSubtitleButton(true)
@@ -53,21 +52,7 @@ class FullscreenActivity : AppCompatActivity() {
         playerView.player = player
         setContentView(playerView)
 
-        ViewCompat.setOnApplyWindowInsetsListener(playerView) { view, insets ->
-            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
-            view.setPadding(0, systemBarsInsets.top, 0, systemBarsInsets.bottom)
-            insets
-        }
-
-        // 31 or higher
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            window.insetsController?.let {
-                it.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_DEFAULT
-            }
-        } else {
-            @Suppress("DEPRECATION")
-            window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
-        }
+        hideSystemBars()
 
         val keepDisplayOn = this.intent.getBooleanExtra("keepDisplayOn", false)
         if (keepDisplayOn) {
@@ -75,10 +60,27 @@ class FullscreenActivity : AppCompatActivity() {
         }
     }
 
-    override fun onDestroy() {
-        if (isChangingConfigurations() != true) {
-            asscVideoView?.get()?.onExitFullscreen()
+    private fun hideSystemBars() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            playerView.windowInsetsController?.apply {
+                systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            playerView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_LOW_PROFILE
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                )
         }
+    }
+
+    override fun onDestroy() {
         super.onDestroy()
+        asscVideoView?.get()?.onExitFullscreen()
     }
 }
