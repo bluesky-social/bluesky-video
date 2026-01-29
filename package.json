@@ -34,15 +34,16 @@
   "homepage": "https://github.com/bluesky-social/bluesky-video#readme",
   "dependencies": {},
   "devDependencies": {
-    "@types/react": "^19.0.14",
+    "@types/react": "~19.1.10",
     "eslint": "^8.51.0",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-prettier": "^5.2.6",
+    "expo": "^54.0.32",
     "expo-module-scripts": "^4.1.6",
-    "expo-modules-core": "^2.3.12",
+    "expo-modules-core": "~3.0.29",
     "jest": "^29.7.0",
     "prettier": "^3.0.3",
-    "react-native": "0.79.2"
+    "react-native": "0.81.5"
   },
   "peerDependencies": {
     "expo": "*",
