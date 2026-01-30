@@ -358,7 +358,16 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   // MARK: - controls
 
   private func play() {
-    self.player?.play()
+    if #available(iOS 16.0, *) {
+      let player = self.player
+      DispatchQueue.global(qos: .userInitiated).async {
+        player?.play()
+      }
+    } else {
+      DispatchQueue.main.async { [weak self] in
+        self?.player?.play()
+      }
+    }
     self.isPlaying = true
   }
 
