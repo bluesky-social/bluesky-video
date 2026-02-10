@@ -51,13 +51,20 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       if isViewActive == oldValue {
         return
       }
-      self.onActiveChange([
-        "isActive": isViewActive
-      ])
+      self.emitActiveStateChange()
     }
   }
 
-  private var isFullscreen: Bool = false {
+  private var isViewStaged: Bool = false {
+    didSet {
+      if isViewStaged == oldValue {
+        return
+      }
+      self.emitActiveStateChange()
+    }
+  }
+
+  var isFullscreen: Bool = false {
     didSet {
       if isFullscreen {
         self.pViewController?.showsPlaybackControls = isFullscreen
@@ -101,6 +108,22 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     self.pViewController = AVPlayerViewController()
     super.init(appContext: appContext)
     self.clipsToBounds = true
+  }
+
+  private func emitActiveStateChange() {
+    let state: String
+    if isViewActive {
+      state = "active"
+    } else if isViewStaged {
+      state = "staged"
+    } else {
+      state = "inactive"
+    }
+    
+    self.onActiveChange([
+      "isActive": state == "active",
+      "state": state
+    ])
   }
 
   // MARK: - lifecycle
@@ -154,7 +177,59 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
   }
 
-  private func destroy() {
+  private func setupStaged() {
+    guard let url = url, self.player == nil else {
+      return
+    }
+
+    self.isDestroyed = false
+    self.isLoading = true
+
+    // Setup the view controller
+    let pViewController = AVPlayerViewController()
+    pViewController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    pViewController.view.backgroundColor = .clear
+    pViewController.view.frame = self.frame
+    pViewController.showsPlaybackControls = false
+    pViewController.delegate = self
+    pViewController.videoGravity = .resizeAspectFill
+    if #available(iOS 16.0, *) {
+      pViewController.allowsVideoFrameAnalysis = false
+    }
+
+    // Recycle the current player if there is one
+    if let currentPlayer = self.player {
+      PlayerManager.shared.recyclePlayer(currentPlayer)
+    }
+
+    // Get a new player to use
+    let player = PlayerManager.shared.dequeuePlayer()
+
+    // Add observers to the player
+    self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
+
+    pViewController.player = player
+    self.addSubview(pViewController.view)
+
+    self.pViewController = pViewController
+    self.player = player
+
+    // Get the player item and add it to the player with staged settings
+    DispatchQueue.global(qos: .background).async { [weak self] in
+      let playerItem = AVPlayerItem(url: url)
+      playerItem.preferredForwardBufferDuration = 1
+      playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = false
+
+      DispatchQueue.main.async {
+        self?.player?.replaceCurrentItem(with: playerItem)
+        self?.addObserversToPlayerItem(playerItem)
+        // Ensure the player is paused for staged state
+        self?.player?.pause()
+      }
+    }
+  }
+
+  func destroy() {
     self.isDestroyed = true
 
     guard let player = self.player else {
@@ -232,7 +307,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     if keyPath == "status" {
       if playerItem.status == AVPlayerItem.Status.readyToPlay {
         self.isLoading = false
-        if self.autoplay || self.ignoreAutoplay {
+        if self.isViewActive && (self.autoplay || self.ignoreAutoplay) {
           self.play()
 
           if !self.beginMuted {
@@ -312,19 +387,64 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   // MARK: - visibility
 
-  func setIsCurrentlyActive(active: Bool) -> Bool {
+  func transitionToActive() -> Bool {
     if self.isFullscreen {
       return false
     }
 
-    self.isViewActive = active
-    if active {
-      if self.autoplay || self.forceTakeover {
-        self.setup()
-      }
+    self.isViewActive = true
+    self.isViewStaged = false
+    
+    if self.player == nil {
+      self.setup()
     } else {
-      self.destroy()
+      // Update player item settings for active playback
+      if let playerItem = self.player?.currentItem {
+        playerItem.preferredForwardBufferDuration = 5
+        playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = true
+      }
+      
+      if self.autoplay || self.ignoreAutoplay {
+        self.play()
+        if !self.beginMuted {
+          self.unmute()
+        }
+      }
     }
+    return true
+  }
+
+  func transitionToStaged() -> Bool {
+    if self.isFullscreen {
+      return false
+    }
+
+    self.isViewStaged = true
+    self.isViewActive = false
+    
+    if self.player == nil {
+      self.setupStaged()
+    } else {
+      // Update player item settings for staged state
+      if let playerItem = self.player?.currentItem {
+        playerItem.preferredForwardBufferDuration = 1
+        playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = false
+      }
+      self.pause()
+    }
+    return true
+  }
+
+  func transitionToInactive() -> Bool {
+    if self.isFullscreen {
+      return false
+    }
+
+    self.isViewActive = false
+    self.isViewStaged = false
+    
+    // Just pause, don't destroy (destruction happens only on view removal)
+    self.pause()
     return true
   }
 
@@ -347,7 +467,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       if self.player == nil {
         ViewManager.shared.setActiveView(self)
         self.ignoreAutoplay = true
-        self.setup()
+      } else if self.isViewStaged {
+        // Promote staged video to active
+        ViewManager.shared.setActiveView(self)
+        self.ignoreAutoplay = true
       } else {
         self.play()
       }

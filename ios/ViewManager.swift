@@ -11,6 +11,7 @@ class ViewManager: Manager<VideoView> {
   static let shared = ViewManager()
 
   private var currentlyActiveView: VideoView?
+  private var stagedViews: [VideoView] = []
   private var screenHeight = UIScreen.main.bounds.height
   private var prevCount = 0
 
@@ -25,84 +26,201 @@ class ViewManager: Manager<VideoView> {
 
   override func remove(_ object: VideoView) {
     super.remove(object)
+    
+    // Remove from staged views if present
+    if let index = self.stagedViews.firstIndex(of: object) {
+      self.stagedViews.remove(at: index)
+    }
+    
+    // Clear active view if it's the one being removed
+    if self.currentlyActiveView == object {
+      self.currentlyActiveView = nil
+    }
+    
     self.prevCount = self.count()
   }
 
   func updateActiveView() {
     DispatchQueue.main.async {
-      var activeView: VideoView?
-
-      if self.count() == 1 {
-        // get the first one
-        guard let view = self.getEnumerator()?.nextObject() as? VideoView else {
-          return
-        }
-        if view.isViewableEnough() {
-          activeView = view
-        }
-      } else if self.count() > 1 {
-        guard let views = self.getEnumerator() else {
-          return
-        }
-
-        var mostVisibleView: VideoView?
-        var highestVisibilityPercentage: CGFloat = 0
-        var topMostPosition: CGFloat = CGFloat.greatestFiniteMagnitude
-
-        views.forEach { view in
-          guard let view = view as? VideoView else {
-            return
-          }
-
-          guard let position = view.getPositionOnScreen() else {
-            return
-          }
-
-          let visibilityPercentage = view.calculateVisibilityPercentage()
-
-          // Only consider videos that meet the minimum visibility threshold
-          if visibilityPercentage >= 0.5 {
-            // Pick the most visible video, or if tied, the topmost one
-            if visibilityPercentage > highestVisibilityPercentage
-              || (visibilityPercentage == highestVisibilityPercentage
-                && position.minY < topMostPosition)
-            {
-              mostVisibleView = view
-              highestVisibilityPercentage = visibilityPercentage
-              topMostPosition = position.minY
-            }
-          }
-        }
-
-        activeView = mostVisibleView
-      }
-
-      if activeView == self.currentlyActiveView {
+      guard let views = self.getEnumerator() else {
         return
       }
 
-      self.clearActiveView()
-      if let view = activeView {
-        self.setActiveView(view)
+      // Collect views that are eligible (on screen or below screen)
+      var eligibleViews: [(view: VideoView, visibility: CGFloat, position: CGFloat)] = []
+      let screenHeight = UIScreen.main.bounds.height
+      
+      views.forEach { view in
+        guard let view = view as? VideoView else {
+          return
+        }
+
+        guard let position = view.getPositionOnScreen() else {
+          return
+        }
+
+        let visibilityPercentage = view.calculateVisibilityPercentage()
+        let isOnScreen = visibilityPercentage > 0
+        let isBelowScreen = position.minY >= screenHeight
+
+        // Include videos that are on screen OR below screen (not above screen)
+        if isOnScreen || isBelowScreen {
+          eligibleViews.append((view: view, visibility: visibilityPercentage, position: position.minY))
+        }
       }
+
+      // Sort by visibility percentage (descending), then by position (ascending for topmost)
+      eligibleViews.sort { first, second in
+        if first.visibility == second.visibility {
+          return first.position < second.position
+        }
+        return first.visibility > second.visibility
+      }
+
+      // Take the top 3 eligible videos
+      let topViews = Array(eligibleViews.prefix(3))
+      
+      // The most visible video (≥50%) becomes active, others become staged
+      var newActiveView: VideoView?
+      var newStagedViews: [VideoView] = []
+      
+      for (index, viewInfo) in topViews.enumerated() {
+        if index == 0 && viewInfo.visibility >= 0.5 {
+          // First video with ≥50% visibility becomes active
+          newActiveView = viewInfo.view
+        } else {
+          // Other visible videos become staged
+          newStagedViews.append(viewInfo.view)
+        }
+      }
+
+      // Check if we need to update anything
+      let activeViewChanged = newActiveView != self.currentlyActiveView
+      let stagedViewsChanged = !Set(newStagedViews).isSubset(of: Set(self.stagedViews)) || 
+                               !Set(self.stagedViews).isSubset(of: Set(newStagedViews))
+
+      if !activeViewChanged && !stagedViewsChanged {
+        return
+      }
+
+      // Calculate which views need state changes
+      let newTopViews = Set([newActiveView].compactMap { $0 } + newStagedViews)
+      
+      // Destroy players for views that are no longer in top 3
+      self.destroyViewsNotInSet(newTopViews)
+
+      // Build complete transition plan to avoid intermediate states
+      let newStagedSet = Set(newStagedViews)
+      let currentStagedSet = Set(self.stagedViews)
+      
+      // Handle old active view
+      if let oldActive = self.currentlyActiveView, oldActive != newActiveView {
+        if newStagedSet.contains(oldActive) {
+          // Active -> Staged: transition directly
+          _ = oldActive.transitionToStaged()
+        } else {
+          // Active -> Inactive: transition to inactive
+          _ = oldActive.transitionToInactive()
+        }
+      }
+      
+      // Handle old staged views
+      for oldStaged in currentStagedSet {
+        if oldStaged == newActiveView {
+          // Staged -> Active: will be handled below
+          continue
+        } else if !newStagedSet.contains(oldStaged) {
+          // Staged -> Inactive: transition to inactive
+          _ = oldStaged.transitionToInactive()
+        }
+        // Staged -> Staged: no change needed
+      }
+      
+      // Set new active view
+      if let newActive = newActiveView, newActive != self.currentlyActiveView {
+        self.currentlyActiveView = newActive
+        _ = newActive.transitionToActive()
+      } else if newActiveView == nil {
+        self.currentlyActiveView = nil
+      }
+      
+      // Set new staged views (only for newly staged ones)
+      for newStaged in newStagedViews {
+        if !currentStagedSet.contains(newStaged) && newStaged != self.currentlyActiveView {
+          _ = newStaged.transitionToStaged()
+        }
+      }
+      
+      self.stagedViews = newStagedViews
     }
   }
 
 
   private func clearActiveView() {
     if let currentlyActiveView = self.currentlyActiveView {
-      _ = currentlyActiveView.setIsCurrentlyActive(active: false)
+      _ = currentlyActiveView.transitionToInactive()
       self.currentlyActiveView = nil
     }
   }
 
-  func setActiveView(_ view: VideoView) {
-    if self.currentlyActiveView != nil {
-      self.clearActiveView()
+  private func clearStagedViews() {
+    for stagedView in self.stagedViews {
+      _ = stagedView.transitionToInactive()
     }
-    let didUpdate = view.setIsCurrentlyActive(active: true)
+    self.stagedViews.removeAll()
+  }
+
+  func setActiveView(_ view: VideoView) {
+    // If there's a current active view, demote it to staged (if there's room)
+    if let currentActive = self.currentlyActiveView, currentActive != view {
+      if self.stagedViews.count < 2 {
+        // Demote current active to staged
+        _ = currentActive.transitionToStaged()
+        self.stagedViews.append(currentActive)
+      } else {
+        // No room in staged, demote to inactive
+        _ = currentActive.transitionToInactive()
+      }
+      self.currentlyActiveView = nil
+    }
+    
+    // Remove from staged views if this view was staged
+    if let index = self.stagedViews.firstIndex(of: view) {
+      self.stagedViews.remove(at: index)
+    }
+    
+    let didUpdate = view.transitionToActive()
     if didUpdate {
       self.currentlyActiveView = view
+    }
+  }
+
+  func setStagedView(_ view: VideoView) {
+    let didUpdate = view.transitionToStaged()
+    if didUpdate {
+      self.stagedViews.append(view)
+    }
+  }
+
+  private func destroyViewsNotInSet(_ topViews: Set<VideoView>) {
+    guard let views = self.getEnumerator() else {
+      return
+    }
+    
+    views.forEach { view in
+      guard let view = view as? VideoView else {
+        return
+      }
+      
+      // Never destroy fullscreen videos
+      if view.isFullscreen {
+        return
+      }
+      
+      // If this view is not in the top 3, destroy its player
+      if !topViews.contains(view) {
+        view.destroy()
+      }
     }
   }
 }
