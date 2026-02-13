@@ -154,6 +154,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     self.isDestroyed = false
     self.isLoading = true
 
+    // Setup the view controller
     let pViewController = AVPlayerViewController()
     pViewController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     pViewController.view.backgroundColor = .clear
@@ -177,8 +178,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       return
     }
 
+    // Get a new player to use
     let player = PlayerManager.shared.dequeuePlayer()
 
+    // Get the player item and add it to the player
     let playerItem = AVPlayerItem(asset: asset)
     playerItem.preferredForwardBufferDuration = 5
 
@@ -200,23 +203,29 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.ignoreAutoplay = false
 
+    // Fire final events
     self.pause()
     self.isLoading = false
 
+    // Remove periodic time observer
     if let periodicTimeObserver = self.periodicTimeObserver {
       player.removeTimeObserver(periodicTimeObserver)
       self.periodicTimeObserver = nil
     }
 
+    // Remove any observers from the player item
     if let playerItem = player.currentItem {
       removeObserversFromPlayerItem(playerItem)
     }
 
+    // Recycle the player
     PlayerManager.shared.recyclePlayer(player)
     self.player = nil
 
+    // Remove the player from the controller
     self.pViewController?.player = nil
 
+    // Remove the view controller
     self.pViewController?.view.removeFromSuperview()
     self.pViewController?.removeFromParent()
     self.pViewController = nil
@@ -227,6 +236,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   }
 
   override func willMove(toWindow newWindow: UIWindow?) {
+    // Ignore anything that happens whenever we enter fullscreen. It's expected that the view will unmount here
     if self.isFullscreen {
       return
     }
@@ -253,12 +263,14 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     context: UnsafeMutableRawPointer?
   ) {
 
+    // This shouldn't happen, but just guard nil values
     guard let player = self.player,
       let playerItem = player.currentItem
     else {
       return
     }
 
+    // Status changes for the player item, i.e. for loading
     if keyPath == "status" {
       if playerItem.status == AVPlayerItem.Status.readyToPlay {
         self.isLoading = false
