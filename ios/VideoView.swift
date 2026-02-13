@@ -121,21 +121,26 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
         let _ = try await asset.load(.duration, .tracks)
 
         guard !Task.isCancelled else { return }
-        guard let self else { return }
-        guard self.url == url else { return }
 
         await MainActor.run {
-          guard self.url == url else { return }
-          self.loadedAsset = asset
-          self.assetLoadingTask = nil
+          guard self?.url == url else { return }
+          self?.loadedAsset = asset
+          self?.assetLoadingTask = nil
 
-          if self.isViewActive && self.player == nil && self.pViewController != nil {
-            self.finishSetupIfReady()
+          if self?.isViewActive == true && self?.player == nil && self?.pViewController != nil {
+            self?.finishSetupIfReady()
           }
         }
       } catch {
+        guard !Task.isCancelled else { return }
         await MainActor.run {
+          guard self?.url == url else { return }
           self?.assetLoadingTask = nil
+          self?.isLoading = false
+          self?.onError([
+            "error": "Failed to load video",
+            "errorDescription": "\(error.localizedDescription)",
+          ])
         }
       }
     }
@@ -228,6 +233,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     if newWindow == nil {
       ViewManager.shared.remove(self)
+      self.assetLoadingTask?.cancel()
+      self.assetLoadingTask = nil
       self.destroy()
     }
   }
@@ -359,9 +366,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   private func play() {
     if #available(iOS 16.0, *) {
-      let player = self.player
-      DispatchQueue.global(qos: .userInitiated).async {
-        player?.play()
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        self?.player?.play()
       }
     } else {
       DispatchQueue.main.async { [weak self] in
