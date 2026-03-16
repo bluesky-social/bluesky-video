@@ -258,11 +258,32 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       forInterval: interval,
       queue: .main
     ) { [weak self] time in
-      guard let duration = self?.player?.currentItem?.duration else {
+      guard let strongSelf = self,
+            let duration = strongSelf.player?.currentItem?.duration else {
         return
       }
-      let timeRemaining = (duration.seconds - time.seconds).rounded()
-      self?.onTimeRemainingChange([
+      
+      // Validate CMTime before accessing .seconds property
+      guard CMTIME_IS_VALID(duration) && !CMTIME_IS_INDEFINITE(duration) else {
+        // Duration is invalid - skip this time update
+        return
+      }
+      
+      // Validate that duration.seconds is a finite number
+      guard duration.seconds.isFinite && duration.seconds > 0 else {
+        // Duration seconds is NaN, infinite, or non-positive - skip update
+        return
+      }
+      
+      // Validate current time is also finite
+      let currentSeconds = time.seconds.isFinite ? time.seconds : 0
+      
+      // Calculate time remaining with defensive arithmetic
+      let rawTimeRemaining = duration.seconds - currentSeconds
+      // Ensure result is finite and non-negative
+      let timeRemaining = rawTimeRemaining.isFinite ? max(0, rawTimeRemaining).rounded() : 0
+      
+      strongSelf.onTimeRemainingChange([
         "timeRemaining": timeRemaining
       ])
     }
