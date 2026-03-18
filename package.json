@@ -1,5 +1,5 @@
 {
-  "name": "@haileyok/bluesky-video",
+  "name": "@bsky.app/video",
   "version": "0.3.1",
   "description": "A video player library for Bluesky",
   "main": "build/index.js",
@@ -29,7 +29,7 @@
   "bugs": {
     "url": "https://github.com/bluesky-social/bluesky-video/issues"
   },
-  "author": "Bluesky Social <hailey@blueskyweb.xyz> (https://github.com/bluesky-social)",
+  "author": "Bluesky Social <samuel@blueskyweb.xyz> (https://github.com/bluesky-social)",
   "license": "MIT",
   "homepage": "https://github.com/bluesky-social/bluesky-video#readme",
   "dependencies": {},

@@ -3,8 +3,8 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "bluesky-video": ["../src/index"],
-      "bluesky-video/*": ["../src/*"]
+      "@bsky.app/video": ["../src/index"],
+      "@bsky.app/video/*": ["../src/*"]
     }
   }
 }
