@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.net.Uri
 import android.view.ViewGroup
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -35,6 +36,7 @@ class BlueskyVideoView(
     var player: ExoPlayer? = null
 
     private var progressTracker: ProgressTracker? = null
+    private var isRecoveringFromBackground = false
 
     var url: Uri? = null
     var autoplay = false
@@ -46,7 +48,7 @@ class BlueskyVideoView(
             field = value
             this.playerView.useController = value
 
-            onStatusChange(
+            onFullscreenChange(
                 mapOf(
                     "isFullscreen" to value,
                 )
@@ -175,6 +177,50 @@ class BlueskyVideoView(
         this.playerScope = null
     }
 
+    internal fun onAppBackgrounded(): Boolean {
+        if (this.isFullscreen) return false
+        val player = this.player ?: return false
+        val wasPlaying = player.isPlaying
+        this.pause()
+        this.mute()
+        player.stop()
+        return wasPlaying
+    }
+
+    internal fun onAppForegrounded(wasPlaying: Boolean) {
+        if (this.isFullscreen) return
+        val player = this.player ?: return
+        if (player.playbackState == Player.STATE_IDLE) {
+            this.isLoading = true
+            this.isRecoveringFromBackground = true
+
+            val shouldPlay = wasPlaying || this.autoplay
+            val listener = object : Player.Listener {
+                private fun cleanup() {
+                    player.removeListener(this)
+                    this@BlueskyVideoView.isRecoveringFromBackground = false
+                    this@BlueskyVideoView.isLoading = false
+                }
+
+                override fun onRenderedFirstFrame() {
+                    cleanup()
+                    if (shouldPlay) {
+                        this@BlueskyVideoView.play()
+                        if (!this@BlueskyVideoView.beginMuted) {
+                            this@BlueskyVideoView.unmute()
+                        }
+                    }
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    cleanup()
+                }
+            }
+            player.addListener(listener)
+            player.prepare()
+        }
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         ViewManager.addView(this)
@@ -189,15 +235,13 @@ class BlueskyVideoView(
     // Controls
 
     private fun play() {
-        this.addProgressTracker()
-        this.player?.play()
         this.isPlaying = true
+        this.player?.play()
     }
 
     private fun pause() {
-        this.player?.pause()
-        this.removeProgressTracker()
         this.isPlaying = false
+        this.player?.pause()
     }
 
     fun togglePlayback() {
@@ -266,12 +310,19 @@ class BlueskyVideoView(
         if (this.enteredFullscreenMuteState) {
             this.mute()
         }
-        if (this.autoplay) {
-            this.play()
-        } else {
+
+        // Restore the player to this view
+        this.playerView.player = this.player
+
+        // Only pause if autoplay is false, otherwise keep playing
+        if (!this.autoplay && this.isPlaying) {
             this.pause()
         }
-        this.playerView.player = this.player
+
+        // Restore progress tracker now that playerView has a player again
+        if (this.player?.isPlaying == true) {
+            this.addProgressTracker()
+        }
     }
 
     // Visibility
@@ -345,7 +396,7 @@ class BlueskyVideoView(
                             when (playbackState) {
                                 ExoPlayer.STATE_READY -> {
                                     val view = this@BlueskyVideoView
-                                    if (view.autoplay || view.ignoreAutoplay) {
+                                    if (!view.isRecoveringFromBackground && (view.autoplay || view.ignoreAutoplay)) {
                                         view.isLoading = false
                                         view.play()
                                         if (!view.beginMuted) {
@@ -355,11 +406,26 @@ class BlueskyVideoView(
                                 }
                             }
                         }
+
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            val view = this@BlueskyVideoView
+                            if (view.isPlaying != isPlaying) {
+                                view.isPlaying = isPlaying
+                            }
+                            if (isPlaying) {
+                                view.addProgressTracker()
+                            } else {
+                                view.removeProgressTracker()
+                            }
+                        }
                     },
                 )
             }
 
     private fun addProgressTracker() {
+        // Remove any existing tracker first to prevent multiple timers
+        this.removeProgressTracker()
+
         val player = this.playerView.player ?: return
         this.progressTracker = ProgressTracker(player, onTimeRemainingChange)
     }

@@ -1,5 +1,5 @@
-import {BlueskyVideoView} from 'bluesky-video'
-import {updateActiveVideoViewAsync} from 'bluesky-video/BlueskyVideoModule'
+import {BlueskyVideoView} from '@bsky.app/video'
+import {updateActiveVideoViewAsync} from '@bsky.app/video/BlueskyVideoModule'
 import React from 'react'
 import {
   FlatList,
@@ -10,7 +10,9 @@ import {
   View,
   Text,
   Switch,
-  SwitchChangeEvent
+  SwitchChangeEvent,
+  ActivityIndicator,
+  StyleSheet
 } from 'react-native'
 
 import {SAMPLE_VIDEOS} from './sampleVideos'
@@ -107,6 +109,7 @@ function Player({
 }) {
   const ref = React.useRef<BlueskyVideoView>(null)
   const [active, setActive] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(false)
 
   const onPress = () => {
     console.log('press')
@@ -132,18 +135,25 @@ function Player({
         onStatusChange={e => {
           console.log('status', e.nativeEvent.status)
         }}
+        onFullscreenChange={e => {
+          console.log('fullscreen', e.nativeEvent.isFullscreen)
+        }}
         onActiveChange={e => {
           console.log('active', e.nativeEvent.isActive)
           setActive(e.nativeEvent.isActive)
         }}
         onLoadingChange={e => {
           console.log('loading', e.nativeEvent.isLoading)
+          setIsLoading(e.nativeEvent.isLoading)
         }}
         onTimeRemainingChange={e => {
           console.log('timeRemaining', e.nativeEvent.timeRemaining)
         }}
         onPlayerPress={Platform.OS === 'android' ? onPress : undefined}
       />
+      {isLoading && (
+        <ActivityIndicator style={StyleSheet.absoluteFill} size="large" />
+      )}
     </Pressable>
   )
 }

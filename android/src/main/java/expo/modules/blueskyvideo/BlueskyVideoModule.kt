@@ -14,7 +14,7 @@ class BlueskyVideoModule : Module() {
         lateinit var audioFocusManager: AudioFocusManager
     }
 
-    private var wasPlayingPlayer: Player? = null
+    private var wasPlaying = false
 
     override fun definition() =
         ModuleDefinition {
@@ -25,20 +25,12 @@ class BlueskyVideoModule : Module() {
             }
 
             OnActivityEntersForeground {
-                wasPlayingPlayer?.play()
-                wasPlayingPlayer = null
+                ViewManager.getActiveView()?.onAppForegrounded(wasPlaying)
+                wasPlaying = false
             }
 
             OnActivityEntersBackground {
-                ViewManager.getActiveView()?.let { view ->
-                    view.player?.let { player ->
-                        if (player.isPlaying && !view.isFullscreen) {
-                            view.mute()
-                            player.pause()
-                            wasPlayingPlayer = player
-                        }
-                    }
-                }
+                wasPlaying = ViewManager.getActiveView()?.onAppBackgrounded() ?: false
             }
 
             AsyncFunction("updateActiveVideoViewAsync") {
