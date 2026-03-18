@@ -75,6 +75,26 @@ class FullscreenActivity : AppCompatActivity() {
         }
     }
 
+    private var wasPlaying = false
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations && !isFinishing) {
+            asscVideoView?.get()?.player?.let { player ->
+                wasPlaying = player.isPlaying
+                player.pause()
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (wasPlaying) {
+            asscVideoView?.get()?.player?.play()
+            wasPlaying = false
+        }
+    }
+
     override fun onDestroy() {
         if (isChangingConfigurations() != true) {
             asscVideoView?.get()?.onExitFullscreen()

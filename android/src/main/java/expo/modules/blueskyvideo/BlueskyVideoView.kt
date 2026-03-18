@@ -35,6 +35,7 @@ class BlueskyVideoView(
     var player: ExoPlayer? = null
 
     private var progressTracker: ProgressTracker? = null
+    private var isRecoveringFromBackground = false
 
     var url: Uri? = null
     var autoplay = false
@@ -46,7 +47,7 @@ class BlueskyVideoView(
             field = value
             this.playerView.useController = value
 
-            onStatusChange(
+            onFullscreenChange(
                 mapOf(
                     "isFullscreen" to value,
                 )
@@ -176,27 +177,38 @@ class BlueskyVideoView(
     }
 
     internal fun onAppBackgrounded(): Boolean {
+        if (this.isFullscreen) return false
         val player = this.player ?: return false
         val wasPlaying = player.isPlaying
         this.pause()
-        if (!this.isFullscreen) {
-            this.mute()
-            player.stop()
-        }
+        this.mute()
+        player.stop()
         return wasPlaying
     }
 
     internal fun onAppForegrounded(wasPlaying: Boolean) {
+        if (this.isFullscreen) return
         val player = this.player ?: return
         if (player.playbackState == Player.STATE_IDLE) {
-            // Was stopped — re-prepare. Autoplay listener handles playback.
-            if (wasPlaying) {
-                this.ignoreAutoplay = true
+            this.isLoading = true
+            this.isRecoveringFromBackground = true
+
+            val shouldPlay = wasPlaying || this.autoplay
+            val listener = object : Player.Listener {
+                override fun onRenderedFirstFrame() {
+                    player.removeListener(this)
+                    this@BlueskyVideoView.isRecoveringFromBackground = false
+                    this@BlueskyVideoView.isLoading = false
+                    if (shouldPlay) {
+                        this@BlueskyVideoView.play()
+                        if (!this@BlueskyVideoView.beginMuted) {
+                            this@BlueskyVideoView.unmute()
+                        }
+                    }
+                }
             }
+            player.addListener(listener)
             player.prepare()
-        } else if (wasPlaying) {
-            // Was paused (e.g. fullscreen) — just resume.
-            this.play()
         }
     }
 
@@ -214,15 +226,13 @@ class BlueskyVideoView(
     // Controls
 
     private fun play() {
-        this.addProgressTracker()
-        this.player?.play()
         this.isPlaying = true
+        this.player?.play()
     }
 
     private fun pause() {
-        this.player?.pause()
-        this.removeProgressTracker()
         this.isPlaying = false
+        this.player?.pause()
     }
 
     fun togglePlayback() {
@@ -299,6 +309,11 @@ class BlueskyVideoView(
         if (!this.autoplay && this.isPlaying) {
             this.pause()
         }
+
+        // Restore progress tracker now that playerView has a player again
+        if (this.player?.isPlaying == true) {
+            this.addProgressTracker()
+        }
     }
 
     // Visibility
@@ -372,7 +387,7 @@ class BlueskyVideoView(
                             when (playbackState) {
                                 ExoPlayer.STATE_READY -> {
                                     val view = this@BlueskyVideoView
-                                    if (view.autoplay || view.ignoreAutoplay) {
+                                    if (!view.isRecoveringFromBackground && (view.autoplay || view.ignoreAutoplay)) {
                                         view.isLoading = false
                                         view.play()
                                         if (!view.beginMuted) {
@@ -380,6 +395,18 @@ class BlueskyVideoView(
                                         }
                                     }
                                 }
+                            }
+                        }
+
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            val view = this@BlueskyVideoView
+                            if (view.isPlaying != isPlaying) {
+                                view.isPlaying = isPlaying
+                            }
+                            if (isPlaying) {
+                                view.addProgressTracker()
+                            } else {
+                                view.removeProgressTracker()
                             }
                         }
                     },
