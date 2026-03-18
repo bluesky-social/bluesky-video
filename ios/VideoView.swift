@@ -5,6 +5,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private var pViewController: AVPlayerViewController?
   private var player: AVPlayer?
   private var periodicTimeObserver: Any?
+  private var loadedAsset: AVAsset?
+  private var assetLoadingTask: Task<Void, Never>?
 
   // props
   var autoplay: Bool = true
@@ -13,6 +15,13 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     didSet {
       if url == nil || url == oldValue {
         return
+      }
+
+      self.assetLoadingTask?.cancel()
+      self.loadedAsset = nil
+
+      if let url = url {
+        self.startAssetLoading(for: url)
       }
 
       if self.isViewActive {
@@ -105,8 +114,40 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   // MARK: - lifecycle
 
+  private func startAssetLoading(for url: URL) {
+    let asset = AVAsset(url: url)
+    self.assetLoadingTask = Task { [weak self] in
+      do {
+        let _ = try await asset.load(.duration, .tracks)
+
+        guard !Task.isCancelled else { return }
+
+        await MainActor.run {
+          guard self?.url == url else { return }
+          self?.loadedAsset = asset
+          self?.assetLoadingTask = nil
+
+          if self?.isViewActive == true && self?.player == nil && self?.pViewController != nil {
+            self?.finishSetupIfReady()
+          }
+        }
+      } catch {
+        guard !Task.isCancelled else { return }
+        await MainActor.run {
+          guard self?.url == url else { return }
+          self?.assetLoadingTask = nil
+          self?.isLoading = false
+          self?.onError([
+            "error": "Failed to load video",
+            "errorDescription": "\(error.localizedDescription)",
+          ])
+        }
+      }
+    }
+  }
+
   private func setup() {
-    guard let url = url, self.player == nil else {
+    guard url != nil, self.player == nil else {
       return
     }
 
@@ -124,34 +165,33 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     if #available(iOS 16.0, *) {
       pViewController.allowsVideoFrameAnalysis = false
     }
+    self.addSubview(pViewController.view)
+    self.pViewController = pViewController
 
-    // Recycle the current player if there is one
-    if let currentPlayer = self.player {
-      PlayerManager.shared.recyclePlayer(currentPlayer)
+    self.finishSetupIfReady()
+  }
+
+  private func finishSetupIfReady() {
+    guard let asset = self.loadedAsset,
+          let pViewController = self.pViewController,
+          self.player == nil else {
+      return
     }
 
     // Get a new player to use
     let player = PlayerManager.shared.dequeuePlayer()
 
-    // Add observers to the player
-    self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
-
-    pViewController.player = player
-    self.addSubview(pViewController.view)
-
-    self.pViewController = pViewController
-    self.player = player
-
     // Get the player item and add it to the player
-    DispatchQueue.global(qos: .background).async { [weak self] in
-      let playerItem = AVPlayerItem(url: url)
-      playerItem.preferredForwardBufferDuration = 5
+    let playerItem = AVPlayerItem(asset: asset)
+    playerItem.preferredForwardBufferDuration = 5
 
-      DispatchQueue.main.async {
-        self?.player?.replaceCurrentItem(with: playerItem)
-        self?.addObserversToPlayerItem(playerItem)
-      }
-    }
+    self.addObserversToPlayerItem(playerItem)
+    player.replaceCurrentItem(with: playerItem)
+
+    self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
+    pViewController.player = player
+
+    self.player = player
   }
 
   private func destroy() {
@@ -167,18 +207,18 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     self.pause()
     self.isLoading = false
 
-    // Remove period time observer and nil it
+    // Remove periodic time observer
     if let periodicTimeObserver = self.periodicTimeObserver {
-      self.player?.removeTimeObserver(periodicTimeObserver)
+      player.removeTimeObserver(periodicTimeObserver)
       self.periodicTimeObserver = nil
     }
 
-    // Remove any observers from the player item and nil the item
-    if let playerItem = self.player?.currentItem {
+    // Remove any observers from the player item
+    if let playerItem = player.currentItem {
       removeObserversFromPlayerItem(playerItem)
     }
 
-    // Recycle the player and nil the player
+    // Recycle the player
     PlayerManager.shared.recyclePlayer(player)
     self.player = nil
 
@@ -203,6 +243,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     if newWindow == nil {
       ViewManager.shared.remove(self)
+      self.assetLoadingTask?.cancel()
+      self.assetLoadingTask = nil
       self.destroy()
     }
   }
@@ -228,7 +270,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       return
     }
 
-    // status changes for the player item, i.e. for loading
+    // Status changes for the player item, i.e. for loading
     if keyPath == "status" {
       if playerItem.status == AVPlayerItem.Status.readyToPlay {
         self.isLoading = false
@@ -319,6 +361,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.isViewActive = active
     if active {
+      if let url = self.url, self.loadedAsset == nil, self.assetLoadingTask == nil {
+        self.startAssetLoading(for: url)
+      }
+
       if self.autoplay || self.forceTakeover {
         self.setup()
       }
@@ -331,7 +377,15 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   // MARK: - controls
 
   private func play() {
-    self.player?.play()
+    if #available(iOS 16.0, *) {
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        self?.player?.play()
+      }
+    } else {
+      DispatchQueue.main.async { [weak self] in
+        self?.player?.play()
+      }
+    }
     self.isPlaying = true
   }
 
