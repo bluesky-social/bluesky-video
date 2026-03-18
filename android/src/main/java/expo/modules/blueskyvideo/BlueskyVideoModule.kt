@@ -12,15 +12,9 @@ import expo.modules.kotlin.modules.ModuleDefinition
 class BlueskyVideoModule : Module() {
     companion object {
         lateinit var audioFocusManager: AudioFocusManager
-        var isAppInBackground: Boolean = false
     }
 
-    private var savedPlayerStates: MutableMap<BlueskyVideoView, PlayerState> = mutableMapOf()
-
-    data class PlayerState(
-        val isPlaying: Boolean,
-        val isMuted: Boolean
-    )
+    private var wasPlaying = false
 
     override fun definition() =
         ModuleDefinition {
@@ -31,36 +25,12 @@ class BlueskyVideoModule : Module() {
             }
 
             OnActivityEntersForeground {
-                isAppInBackground = false
-
-                savedPlayerStates.entries.toList().forEach { (view, state) ->
-                    view.restorePlayerState(state)
-                }
-                savedPlayerStates.clear()
-
-                ViewManager.onAppForegrounded()
+                ViewManager.getActiveView()?.onAppForegrounded(wasPlaying)
+                wasPlaying = false
             }
 
             OnActivityEntersBackground {
-                isAppInBackground = true
-                ViewManager.onAppBackgrounded()
-
-                // Don't destroy players if any view is in fullscreen mode
-                val hasFullscreenView = ViewManager.getAllViews().any { it.isFullscreen }
-                if (!hasFullscreenView) {
-                    savedPlayerStates.clear()
-
-                    ViewManager.getAllViews().forEach { view ->
-                        view.player?.let { player ->
-                            val state = PlayerState(
-                                isPlaying = player.isPlaying,
-                                isMuted = view.isMuted
-                            )
-                            savedPlayerStates[view] = state
-                        }
-                        view.destroyForBackground()
-                    }
-                }
+                wasPlaying = ViewManager.getActiveView()?.onAppBackgrounded() ?: false
             }
 
             AsyncFunction("updateActiveVideoViewAsync") {

@@ -63,7 +63,7 @@ class BlueskyVideoView(
             )
         }
 
-    var isMuted: Boolean = true
+    private var isMuted: Boolean = true
         set(value) {
             field = value
             onMutedChange(
@@ -175,37 +175,28 @@ class BlueskyVideoView(
         this.playerScope = null
     }
 
-    fun destroyForBackground() {
-        this.removeProgressTracker()
-        this.destroy()
+    internal fun onAppBackgrounded(): Boolean {
+        val player = this.player ?: return false
+        val wasPlaying = player.isPlaying
+        this.pause()
+        if (!this.isFullscreen) {
+            this.mute()
+            player.stop()
+        }
+        return wasPlaying
     }
 
-    fun restorePlayerState(state: BlueskyVideoModule.PlayerState) {
-        if (BlueskyVideoModule.isAppInBackground) {
-            return
-        }
-
-        this.isViewActive = true
-
-        this.setup()
-
-        this.player?.let { player ->
-            val listener = object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_READY) {
-                        player.removeListener(this)
-
-                        if (!state.isMuted) {
-                            this@BlueskyVideoView.unmute()
-                        }
-
-                        if (state.isPlaying) {
-                            this@BlueskyVideoView.play()
-                        }
-                    }
-                }
+    internal fun onAppForegrounded(wasPlaying: Boolean) {
+        val player = this.player ?: return
+        if (player.playbackState == Player.STATE_IDLE) {
+            // Was stopped — re-prepare. Autoplay listener handles playback.
+            if (wasPlaying) {
+                this.ignoreAutoplay = true
             }
-            player.addListener(listener)
+            player.prepare()
+        } else if (wasPlaying) {
+            // Was paused (e.g. fullscreen) — just resume.
+            this.play()
         }
     }
 
@@ -235,10 +226,6 @@ class BlueskyVideoView(
     }
 
     fun togglePlayback() {
-        if (BlueskyVideoModule.isAppInBackground) {
-            return
-        }
-
         if (this.isPlaying) {
             this.pause()
         } else {
@@ -275,10 +262,6 @@ class BlueskyVideoView(
     // Fullscreen handling
 
     fun enterFullscreen(keepDisplayOn: Boolean) {
-        if (BlueskyVideoModule.isAppInBackground) {
-            return
-        }
-
         val currentActivity = this.appContext.currentActivity ?: return
 
         this.enteredFullscreenMuteState = this.isMuted
@@ -327,7 +310,7 @@ class BlueskyVideoView(
 
         this.isViewActive = isActive
         if (isActive) {
-            if (!BlueskyVideoModule.isAppInBackground && (this.autoplay || this.forceTakeover)) {
+            if (this.autoplay || this.forceTakeover) {
                 this.setup()
             }
         } else {
