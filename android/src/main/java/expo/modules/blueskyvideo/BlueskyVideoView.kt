@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.net.Uri
 import android.view.ViewGroup
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -195,16 +196,24 @@ class BlueskyVideoView(
 
             val shouldPlay = wasPlaying || this.autoplay
             val listener = object : Player.Listener {
-                override fun onRenderedFirstFrame() {
+                private fun cleanup() {
                     player.removeListener(this)
                     this@BlueskyVideoView.isRecoveringFromBackground = false
                     this@BlueskyVideoView.isLoading = false
+                }
+
+                override fun onRenderedFirstFrame() {
+                    cleanup()
                     if (shouldPlay) {
                         this@BlueskyVideoView.play()
                         if (!this@BlueskyVideoView.beginMuted) {
                             this@BlueskyVideoView.unmute()
                         }
                     }
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    cleanup()
                 }
             }
             player.addListener(listener)
