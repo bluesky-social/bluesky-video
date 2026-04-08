@@ -37,6 +37,7 @@ class BlueskyVideoView(
 
     private var progressTracker: ProgressTracker? = null
     private var isRecoveringFromBackground = false
+    private var savedPosition: Long = 0L
 
     var url: Uri? = null
     var autoplay = false
@@ -181,6 +182,7 @@ class BlueskyVideoView(
         if (this.isFullscreen) return false
         val player = this.player ?: return false
         val wasPlaying = player.isPlaying
+        this.savedPosition = player.currentPosition
         this.pause()
         this.mute()
         player.stop()
@@ -218,6 +220,10 @@ class BlueskyVideoView(
             }
             player.addListener(listener)
             player.prepare()
+            if (this.savedPosition > 0) {
+                player.seekTo(this.savedPosition)
+                this.savedPosition = 0L
+            }
         }
     }
 
@@ -426,7 +432,7 @@ class BlueskyVideoView(
         // Remove any existing tracker first to prevent multiple timers
         this.removeProgressTracker()
 
-        val player = this.playerView.player ?: return
+        val player = this.player ?: return
         this.progressTracker = ProgressTracker(player, onTimeRemainingChange)
     }
 
