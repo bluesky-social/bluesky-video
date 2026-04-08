@@ -3,7 +3,7 @@ import {NativeSyntheticEvent, StyleProp, ViewStyle} from 'react-native'
 export type BlueskyVideoViewProps = {
   url: string
   autoplay: boolean
-  beginMuted: boolean
+  beginMuted?: boolean
   forceTakeover?: boolean
   accessibilityHint?: string
   accessibilityLabel?: string
