@@ -4,6 +4,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application>
-        <activity android:name=".FullscreenActivity" />
+        <activity
+            android:name=".FullscreenActivity"
+            android:theme="@style/Theme.BlueskyVideo.Fullscreen"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
     </application>
 </manifest>

@@ -77,7 +77,13 @@ class BlueskyVideoModule : Module() {
                 }
 
                 AsyncFunction("enterFullscreen") { view: BlueskyVideoView, keepDisplayOn: Boolean ->
-                    view.enterFullscreen(keepDisplayOn)
+                    // enterFullscreen captures a PixelCopy of the inline SurfaceView and
+                    // traverses the view hierarchy, both of which must happen on the main
+                    // thread. AsyncFunction bodies run on the module's queue, so post to main.
+                    val handler = Handler(Looper.getMainLooper())
+                    handler.post {
+                        view.enterFullscreen(keepDisplayOn)
+                    }
                 }
             }
         }
