@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Opaque fallback theme (API < 30). A translucent activity inherits the
+        orientation of the activity behind it, so on API 26-29 a permanently
+        translucent fullscreen activity could never rotate to landscape when the
+        host app is portrait-locked. Instead we stay opaque with a black window
+        background and animate the morph over black. windowAnimationStyle is
+        nulled out so the OS doesn't add its own activity transition on top of
+        our snapshot morph.
+    -->
+    <style name="Theme.BlueskyVideo.Fullscreen" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>

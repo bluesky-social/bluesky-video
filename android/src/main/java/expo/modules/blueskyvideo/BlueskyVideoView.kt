@@ -2,10 +2,18 @@ package expo.modules.blueskyvideo
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.view.PixelCopy
+import android.view.SurfaceView
+import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -33,7 +41,11 @@ class BlueskyVideoView(
     private var playerScope: CoroutineScope? = null
 
     private val playerView: PlayerView
+    private val posterView: ImageView
     var player: ExoPlayer? = null
+
+    private var posterHideListener: Player.Listener? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private var progressTracker: ProgressTracker? = null
     private var isRecoveringFromBackground = false
@@ -137,6 +149,24 @@ class BlueskyVideoView(
             ),
         )
         this.playerView = playerView
+
+        // Poster sits on top of the playerView. During the enter transition we
+        // capture the inline frame and show it here so the inline view isn't a
+        // black rectangle behind the (possibly translucent) fullscreen morph.
+        // CENTER_CROP matches the playerView's RESIZE_MODE_ZOOM framing.
+        val posterView =
+            ImageView(context).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                visibility = View.GONE
+            }
+        this.addView(
+            posterView,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        this.posterView = posterView
     }
 
     // Lifecycle
@@ -168,6 +198,9 @@ class BlueskyVideoView(
 
         this.isLoading = false
         this.ignoreAutoplay = false
+
+        this.removePosterHideListener()
+        this.hidePoster()
 
         this.pause()
 
@@ -298,17 +331,127 @@ class BlueskyVideoView(
             this.play()
         }
 
-        // Remove the player from this view, but don't null the player!
+        // Grab the current inline rect (in screen coords) and attempt to capture the
+        // still-attached inline SurfaceView. Capture is async (PixelCopy), so the rest
+        // of the launch happens inside the completion callback.
+        val enterRect = this.getScreenRect()
+        val surfaceView = this.findSurfaceView()
+
+        this.captureFrame(surfaceView) { bitmap ->
+            if (bitmap != null && enterRect != null) {
+                TransitionSnapshot.bitmap = bitmap
+                TransitionSnapshot.enterRect = enterRect
+                this.showPoster(bitmap)
+            } else {
+                // No usable snapshot - clear the holder and fall back to a plain launch.
+                TransitionSnapshot.clear()
+            }
+
+            this.launchFullscreen(
+                currentActivity = currentActivity,
+                keepDisplayOn = keepDisplayOn,
+                animate = bitmap != null && enterRect != null,
+            )
+        }
+    }
+
+    private fun launchFullscreen(
+        currentActivity: android.app.Activity,
+        keepDisplayOn: Boolean,
+        animate: Boolean,
+    ) {
+        // Remove the player from this view, but don't null the player! The poster (if
+        // shown) now covers the blanked surface.
         this.playerView.player = null
 
         // create the intent and give it a view
         val intent = Intent(context, FullscreenActivity::class.java)
         intent.putExtra("keepDisplayOn", keepDisplayOn)
+        intent.putExtra("animate", animate)
         FullscreenActivity.asscVideoView = WeakReference(this)
 
         // fire the fullscreen event and launch the intent
         this.isFullscreen = true
         currentActivity.startActivity(intent)
+    }
+
+    // Finds the SurfaceView the player renders into by scanning the playerView's
+    // children. media3's PlayerView.videoSurfaceView returns a View? which defaults
+    // to a SurfaceView for our config; fall back to a manual scan otherwise.
+    private fun findSurfaceView(): SurfaceView? {
+        (this.playerView.videoSurfaceView as? SurfaceView)?.let {
+            return it
+        }
+        return this.findSurfaceViewIn(this.playerView)
+    }
+
+    private fun findSurfaceViewIn(view: View): SurfaceView? {
+        if (view is SurfaceView) {
+            return view
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                this.findSurfaceViewIn(view.getChildAt(i))?.let {
+                    return it
+                }
+            }
+        }
+        return null
+    }
+
+    // Captures the given SurfaceView into a bitmap via PixelCopy (API 24+). Any
+    // failure (old API, invalid surface, zero size, exception, non-success status)
+    // resolves the callback with null so callers degrade gracefully.
+    private fun captureFrame(
+        surfaceView: SurfaceView?,
+        callback: (Bitmap?) -> Unit,
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || surfaceView == null) {
+            callback(null)
+            return
+        }
+
+        val width = surfaceView.width
+        val height = surfaceView.height
+        if (width <= 0 || height <= 0) {
+            callback(null)
+            return
+        }
+
+        try {
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            PixelCopy.request(
+                surfaceView,
+                bitmap,
+                { copyResult ->
+                    if (copyResult == PixelCopy.SUCCESS) {
+                        callback(bitmap)
+                    } else {
+                        callback(null)
+                    }
+                },
+                this.mainHandler,
+            )
+        } catch (e: Exception) {
+            callback(null)
+        }
+    }
+
+    private fun showPoster(bitmap: Bitmap) {
+        this.posterView.setImageBitmap(bitmap)
+        this.posterView.visibility = View.VISIBLE
+    }
+
+    private fun hidePoster() {
+        this.posterView.visibility = View.GONE
+        this.posterView.setImageBitmap(null)
+    }
+
+    private fun removePosterHideListener() {
+        this.posterHideListener?.let {
+            this.player?.removeListener(it)
+        }
+        this.posterHideListener = null
     }
 
     fun onExitFullscreen() {
@@ -320,6 +463,31 @@ class BlueskyVideoView(
         // Restore the player to this view
         this.playerView.player = this.player
 
+        // If a poster is showing, keep it up until the inline surface has rendered its
+        // first frame again so we don't flash black on re-attach. A paused non-autoplay
+        // player may never render, so fall back to a safety timeout.
+        if (this.posterView.visibility == View.VISIBLE) {
+            this.removePosterHideListener()
+            val player = this.player
+            if (player != null) {
+                val listener =
+                    object : Player.Listener {
+                        override fun onRenderedFirstFrame() {
+                            this@BlueskyVideoView.removePosterHideListener()
+                            this@BlueskyVideoView.hidePoster()
+                        }
+                    }
+                this.posterHideListener = listener
+                player.addListener(listener)
+                this.mainHandler.postDelayed({
+                    this.removePosterHideListener()
+                    this.hidePoster()
+                }, 400)
+            } else {
+                this.hidePoster()
+            }
+        }
+
         // Only pause if autoplay is false, otherwise keep playing
         if (!this.autoplay && this.isPlaying) {
             this.pause()
@@ -329,6 +497,16 @@ class BlueskyVideoView(
         if (this.player?.isPlaying == true) {
             this.addProgressTracker()
         }
+
+        // The transition is complete; release the snapshot holder.
+        TransitionSnapshot.clear()
+    }
+
+    // Called from the fullscreen activity's exit animation with a fresh capture of the
+    // current fullscreen frame, so the shrinking snapshot lands on a matching still
+    // rather than the stale enter-frame.
+    fun updatePoster(bitmap: Bitmap) {
+        this.showPoster(bitmap)
     }
 
     // Visibility
@@ -358,6 +536,26 @@ class BlueskyVideoView(
 
         val screenPosition = intArrayOf(0, 0)
         this.getLocationInWindow(screenPosition)
+        return Rect(
+            screenPosition[0],
+            screenPosition[1],
+            screenPosition[0] + this.width,
+            screenPosition[1] + this.height,
+        )
+    }
+
+    // Like getPositionOnScreen(), but in true SCREEN coordinates (getLocationOnScreen)
+    // rather than window coordinates. The fullscreen activity's window is edge-to-edge
+    // while the RN activity's may not be, so window coordinates don't align between the
+    // two windows; screen coordinates do. Used only for the fullscreen transition rects -
+    // the feed-visibility logic keeps using getPositionOnScreen().
+    fun getScreenRect(): Rect? {
+        if (!this.isShown) {
+            return null
+        }
+
+        val screenPosition = intArrayOf(0, 0)
+        this.getLocationOnScreen(screenPosition)
         return Rect(
             screenPosition[0],
             screenPosition[1],

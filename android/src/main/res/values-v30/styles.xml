@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Translucent variant (API 30+). The window starts translucent so the
+        inline feed + inline poster show through behind the morphing snapshot.
+        On API 30+ we call Activity.setTranslucent(false) once the enter
+        animation completes to restore free rotation, and setTranslucent(true)
+        again at the start of the exit animation.
+    -->
+    <style name="Theme.BlueskyVideo.Fullscreen" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>
