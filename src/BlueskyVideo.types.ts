@@ -1,5 +1,12 @@
 import {NativeSyntheticEvent, StyleProp, ViewStyle} from 'react-native'
 
+export type BlueskyVideoError = {
+  error: string
+  errorDescription?: string
+  errorDomain?: string
+  errorCode?: number
+}
+
 export type BlueskyVideoViewProps = {
   url: string
   autoplay: boolean
@@ -21,6 +28,6 @@ export type BlueskyVideoViewProps = {
   onFullscreenChange?: (
     e: NativeSyntheticEvent<{isFullscreen: boolean}>
   ) => void
-  onError?: (e: NativeSyntheticEvent<{error: string}>) => void
+  onError?: (e: NativeSyntheticEvent<BlueskyVideoError>) => void
   style?: StyleProp<ViewStyle>
 }

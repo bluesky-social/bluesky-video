@@ -241,9 +241,12 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
         }
       }
       if playerItem.status == AVPlayerItem.Status.failed {
+        let error = playerItem.error as NSError?
         self.onError([
           "error": "Failed to load video",
-          "errorDescription": playerItem.error?.localizedDescription ?? "",
+          "errorDescription": error?.localizedDescription ?? "",
+          "errorDomain": error?.domain ?? "",
+          "errorCode": error?.code ?? 0
         ])
       }
     }
