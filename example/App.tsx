@@ -130,7 +130,7 @@ function Player({
         autoplay
         ref={ref}
         onError={e => {
-          console.log('error', e.nativeEvent.error)
+          console.log('error', e.nativeEvent)
         }}
         onStatusChange={e => {
           console.log('status', e.nativeEvent.status)
