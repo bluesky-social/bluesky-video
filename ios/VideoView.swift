@@ -15,9 +15,12 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
         return
       }
 
-      if self.isViewActive {
+      // reload any prepared player too, not just an active one
+      if self.isViewActive || self.player != nil {
         self.destroy()
-        self.setup()
+        if self.isViewActive {
+          self.setup()
+        }
       }
     }
   }
@@ -232,7 +235,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     if keyPath == "status" {
       if playerItem.status == AVPlayerItem.Status.readyToPlay {
         self.isLoading = false
-        if self.autoplay || self.ignoreAutoplay {
+        // a preloaded view holds its player paused; only the active view plays
+        if (self.autoplay || self.ignoreAutoplay) && self.isViewActive {
           self.play()
 
           if !self.beginMuted {
@@ -312,6 +316,26 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   // MARK: - visibility
 
+  /*
+   * Views near the viewport (the preload window) hold a prepared, paused
+   * player so that becoming active is instant. Activation still controls
+   * playback; leaving the preload window (not just losing the active slot)
+   * is what releases the player.
+   */
+  func setIsPreloaded(_ preloaded: Bool) {
+    if self.isFullscreen {
+      return
+    }
+
+    if preloaded {
+      if self.player == nil {
+        self.setup()
+      }
+    } else if !self.isViewActive {
+      self.destroy()
+    }
+  }
+
   func setIsCurrentlyActive(active: Bool) -> Bool {
     if self.isFullscreen {
       return false
@@ -319,11 +343,23 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.isViewActive = active
     if active {
-      if self.autoplay || self.forceTakeover {
-        self.setup()
+      if self.autoplay || self.forceTakeover || self.ignoreAutoplay {
+        if self.player == nil {
+          self.setup()
+        } else if self.player?.currentItem?.status == AVPlayerItem.Status.readyToPlay {
+          // preloaded: item already buffered, start immediately
+          self.play()
+
+          if !self.beginMuted {
+            self.unmute()
+          }
+        }
+        // else: preloaded but still loading; the item status observer
+        // starts playback once ready (it now also checks isViewActive)
       }
     } else {
-      self.destroy()
+      // stay prepared while inside the preload window; only pause here
+      self.pause()
     }
     return true
   }
