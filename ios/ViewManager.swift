@@ -158,11 +158,34 @@ class ViewManager: Manager<VideoView> {
     }
 
     /* Apply. Views losing the active slot only pause; views outside
-     * the preload window release their player. */
-    self.getEnumerator()?.forEach { obj in
-      guard let view = obj as? VideoView else { return }
-      let shouldPreload = preloadViews.contains(ObjectIdentifier(view))
+     * the preload window release their player.
+     *
+     * Setting up a player costs a few ms of main-thread AVKit work, so
+     * at most one preload setup happens per pass (nearest first); the
+     * rest follow on later passes instead of piling into one frame
+     * during a fling. The active view is never deferred. */
+    var preloadSetupBudget = 1
+    var deferredPreload = false
+    let byDistance = Dictionary(
+      candidates.map({ (ObjectIdentifier($0.view), $0.distanceInScreens) }),
+      uniquingKeysWith: { a, _ in a }
+    )
+    let liveViews = ((self.getEnumerator()?.allObjects as? [VideoView]) ?? [])
+      .sorted(by: {
+        (byDistance[ObjectIdentifier($0)] ?? .infinity) < (byDistance[ObjectIdentifier($1)] ?? .infinity)
+      })
+    for view in liveViews {
+      var shouldPreload = preloadViews.contains(ObjectIdentifier(view))
       let isActive = activeCandidate.map({ $0.view === view }) ?? false
+
+      if shouldPreload && !isActive && !view.hasPlayer {
+        if preloadSetupBudget > 0 {
+          preloadSetupBudget -= 1
+        } else {
+          shouldPreload = false
+          deferredPreload = true
+        }
+      }
 
       if isActive {
         if self.currentlyActiveView !== view {
@@ -178,6 +201,14 @@ class ViewManager: Manager<VideoView> {
       }
 
       view.setIsPreloaded(shouldPreload)
+    }
+
+    /* Finish the deferred setups even if scrolling has stopped, about
+     * one frame later rather than on the next runloop tick. */
+    if deferredPreload {
+      DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(16)) { [weak self] in
+        self?.scheduleRecompute()
+      }
     }
   }
 

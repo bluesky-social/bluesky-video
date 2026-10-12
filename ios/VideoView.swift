@@ -1,7 +1,25 @@
 import AVFoundation
 import ExpoModulesCore
 
+/*
+ * Renders the inline (feed) video. A bare AVPlayerLayer-backed view is far
+ * cheaper on the main thread than AVPlayerViewController, whose view
+ * hierarchy is created, laid out and drawn even with its controls hidden.
+ */
+private class PlayerLayerView: UIView {
+  override class var layerClass: AnyClass {
+    return AVPlayerLayer.self
+  }
+
+  var playerLayer: AVPlayerLayer {
+    // swiftlint:disable:next force_cast
+    return layer as! AVPlayerLayer
+  }
+}
+
 class VideoView: ExpoView, AVPlayerViewControllerDelegate {
+  private let playerLayerView = PlayerLayerView()
+  /* Only exists while presenting fullscreen, see `enterFullscreen`. */
   private var pViewController: AVPlayerViewController?
   private var player: AVPlayer?
   private var periodicTimeObserver: Any?
@@ -101,9 +119,15 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private var isDestroyed = true
 
   required init(appContext: AppContext? = nil) {
-    self.pViewController = AVPlayerViewController()
     super.init(appContext: appContext)
     self.clipsToBounds = true
+
+    self.playerLayerView.frame = self.bounds
+    self.playerLayerView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    self.playerLayerView.backgroundColor = .clear
+    self.playerLayerView.isUserInteractionEnabled = false
+    self.playerLayerView.playerLayer.videoGravity = .resizeAspectFill
+    self.addSubview(self.playerLayerView)
   }
 
   // MARK: - lifecycle
@@ -116,18 +140,6 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     self.isDestroyed = false
     self.isLoading = true
 
-    // Setup the view controller
-    let pViewController = AVPlayerViewController()
-    pViewController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-    pViewController.view.backgroundColor = .clear
-    pViewController.view.frame = self.frame
-    pViewController.showsPlaybackControls = false
-    pViewController.delegate = self
-    pViewController.videoGravity = .resizeAspectFill
-    if #available(iOS 16.0, *) {
-      pViewController.allowsVideoFrameAnalysis = false
-    }
-
     // Recycle the current player if there is one
     if let currentPlayer = self.player {
       PlayerManager.shared.recyclePlayer(currentPlayer)
@@ -139,10 +151,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     // Add observers to the player
     self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
 
-    pViewController.player = player
-    self.addSubview(pViewController.view)
-
-    self.pViewController = pViewController
+    self.playerLayerView.playerLayer.player = player
     self.player = player
 
     // Get the player item and add it to the player
@@ -185,17 +194,26 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     PlayerManager.shared.recyclePlayer(player)
     self.player = nil
 
-    // Remove the player from the controller
-    self.pViewController?.player = nil
+    self.playerLayerView.playerLayer.player = nil
+    self.removeFullscreenController()
+  }
 
-    // Remove the view controller
-    self.pViewController?.view.removeFromSuperview()
-    self.pViewController?.removeFromParent()
+  /* Tears down the controller created for fullscreen, if any. */
+  private func removeFullscreenController() {
+    guard let pViewController = self.pViewController else {
+      return
+    }
+    pViewController.player = nil
+    pViewController.view.removeFromSuperview()
+    pViewController.removeFromParent()
     self.pViewController = nil
   }
 
   override func didMoveToWindow() {
-    ViewManager.shared.add(self)
+    // also called after leaving a window, which `willMove(toWindow:)` handles
+    if self.window != nil {
+      ViewManager.shared.add(self)
+    }
   }
 
   override func willMove(toWindow newWindow: UIWindow?) {
@@ -304,6 +322,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       }
 
       self.isFullscreen = false
+      // back inline: the lightweight player layer takes over again
+      self.removeFullscreenController()
       if self.enteredFullScreenMuted {
         self.mute()
       }
@@ -322,6 +342,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
    * playback; leaving the preload window (not just losing the active slot)
    * is what releases the player.
    */
+  var hasPlayer: Bool {
+    return self.player != nil
+  }
+
   func setIsPreloaded(_ preloaded: Bool) {
     if self.isFullscreen {
       return
@@ -415,10 +439,31 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   }
 
   func enterFullscreen(keepDisplayOn: Bool) {
-    guard let pViewController = self.pViewController,
-      !isFullscreen
-    else {
+    guard let player = self.player, !isFullscreen else {
       return
+    }
+
+    /*
+     * Inline playback renders through `playerLayerView`; the system
+     * fullscreen presentation needs an AVPlayerViewController, so create one
+     * over the inline view only now. It is removed again when fullscreen
+     * ends (see the delegate method) or the player is destroyed.
+     */
+    let pViewController = self.pViewController ?? AVPlayerViewController()
+    if self.pViewController == nil {
+      pViewController.view.frame = self.bounds
+      pViewController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      pViewController.view.backgroundColor = .clear
+      pViewController.showsPlaybackControls = false
+      pViewController.delegate = self
+      pViewController.videoGravity = .resizeAspectFill
+      if #available(iOS 16.0, *) {
+        pViewController.allowsVideoFrameAnalysis = false
+      }
+      pViewController.player = player
+      self.addSubview(pViewController.view)
+      pViewController.view.layoutIfNeeded()
+      self.pViewController = pViewController
     }
 
     let selectorName = "enterFullScreenAnimated:completionHandler:"
@@ -433,6 +478,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       if keepDisplayOn {
         UIApplication.shared.isIdleTimerDisabled = true
       }
+    } else {
+      self.removeFullscreenController()
     }
   }
 }
