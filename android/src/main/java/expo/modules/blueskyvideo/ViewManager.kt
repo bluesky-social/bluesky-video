@@ -10,6 +10,8 @@ class ViewManager {
         private var currentlyActiveView: BlueskyVideoView? = null
         private var prevCount = 0
 
+        var isAppBackgrounded = false
+
         fun addView(view: BlueskyVideoView) {
             views.add(view)
             if (prevCount == 0) {

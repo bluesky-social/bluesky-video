@@ -25,11 +25,13 @@ class BlueskyVideoModule : Module() {
             }
 
             OnActivityEntersForeground {
+                ViewManager.isAppBackgrounded = false
                 ViewManager.getActiveView()?.onAppForegrounded(wasPlaying)
                 wasPlaying = false
             }
 
             OnActivityEntersBackground {
+                ViewManager.isAppBackgrounded = true
                 wasPlaying = ViewManager.getActiveView()?.onAppBackgrounded() ?: false
             }
 

@@ -5,6 +5,9 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import android.view.View
 import android.view.ViewGroup
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -137,6 +140,33 @@ class BlueskyVideoView(
             ),
         )
         this.playerView = playerView
+
+        // Child views are detached before their parents, so the SurfaceView is torn down before
+        // onDetachedFromWindow runs here, and its surfaceDestroyed callback makes a still-live
+        // player block the main thread until the playback thread lets go of the surface. This
+        // callback is registered before any player's own (they are called in order), so the
+        // player is already released by the time its callback runs.
+        (playerView.videoSurfaceView as? SurfaceView)?.holder?.addCallback(
+            object : SurfaceHolder.Callback {
+                override fun surfaceCreated(holder: SurfaceHolder) {}
+
+                override fun surfaceChanged(
+                    holder: SurfaceHolder,
+                    format: Int,
+                    width: Int,
+                    height: Int,
+                ) {}
+
+                override fun surfaceDestroyed(holder: SurfaceHolder) {
+                    // Still visible in a foreground app means the surface is going away because
+                    // the view is being detached, not because it or the window got hidden. A
+                    // hidden view keeps its player, e.g. to resume when the app returns.
+                    if (!ViewManager.isAppBackgrounded && isShown && windowVisibility == View.VISIBLE) {
+                        destroy(surfaceIsGoingAway = true)
+                    }
+                }
+            },
+        )
     }
 
     // Lifecycle
@@ -163,7 +193,15 @@ class BlueskyVideoView(
         this.playerScope = playerScope
     }
 
-    private fun destroy() {
+    /**
+     * `release()` does not wait for the playback thread (see `releaseTimeoutMs` in
+     * `createExoPlayer`), because waiting blocks the main thread for as long as the playback
+     * thread is busy, e.g. creating codecs, which stalled feed scrolling by 40-130 ms per video.
+     *
+     * When the view stays attached, the surface is handed back synchronously first, so a player
+     * created right after this one can attach to the same surface.
+     */
+    private fun destroy(surfaceIsGoingAway: Boolean = false) {
         val player = this.player ?: return
 
         this.isLoading = false
@@ -171,6 +209,9 @@ class BlueskyVideoView(
 
         this.pause()
 
+        if (!surfaceIsGoingAway) {
+            player.clearVideoSurface()
+        }
         player.release()
         this.player = null
         this.playerView.player = null
@@ -233,9 +274,10 @@ class BlueskyVideoView(
     }
 
     override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
+        // The player is normally released already, by the surfaceDestroyed callback set up in init.
         ViewManager.removeView(this)
-        this.destroy()
+        this.destroy(surfaceIsGoingAway = true)
+        super.onDetachedFromWindow()
     }
 
     // Controls
@@ -388,6 +430,8 @@ class BlueskyVideoView(
             .Builder(context)
             .apply {
                 setLooper(context.mainLooper)
+                // Make release() asynchronous, see destroy().
+                setReleaseTimeoutMs(0)
                 setSeekForwardIncrementMs(5000)
                 setSeekBackIncrementMs(5000)
             }.build()
