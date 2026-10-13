@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- player_layout_id can only be set from XML, so the inline PlayerView is inflated from here. -->
+<androidx.media3.ui.PlayerView xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  app:player_layout_id="@layout/bluesky_video_player_content"
+  app:use_controller="false" />
