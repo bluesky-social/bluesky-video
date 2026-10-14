@@ -471,6 +471,19 @@ class BlueskyVideoView(
                                 view.removeProgressTracker()
                             }
                         }
+
+                        override fun onPlayerError(error: PlaybackException) {
+                            val view = this@BlueskyVideoView
+                            view.isLoading = false
+                            view.onError(
+                                buildMap {
+                                    put("error", "Failed to load video")
+                                    error.message?.let { put("errorDescription", it) }
+                                    put("errorCode", error.errorCode)
+                                    put("errorCodeName", error.errorCodeName)
+                                },
+                            )
+                        }
                     },
                 )
             }
