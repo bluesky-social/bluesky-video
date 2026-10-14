@@ -13,16 +13,13 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   var beginMuted = true
   var url: URL? {
     didSet {
-      if url == nil || url == oldValue {
+      guard let url, url != oldValue else {
         return
       }
 
       self.assetLoadingTask?.cancel()
       self.loadedAsset = nil
-
-      if let url = url {
-        self.startAssetLoading(for: url)
-      }
+      self.startAssetLoading(for: url)
 
       if self.isViewActive {
         self.destroy()
@@ -104,53 +101,67 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private var enteredFullScreenMuted = true
   private var enteredFullScreenWithIdleTimerDisabled = false
   private var ignoreAutoplay = false
+  // False from setup() until destroy(), including while we wait for the asset to load and don't have
+  // a player yet
   private var isDestroyed = true
 
+  // Play/pause are nonisolated on iOS 16+, so we send them from a serial queue to keep them off the
+  // main thread while still running in the order they were called
+  private static let playbackQueue = DispatchQueue(
+    label: "app.bsky.video.playback", qos: .userInitiated)
+
   required init(appContext: AppContext? = nil) {
-    self.pViewController = AVPlayerViewController()
     super.init(appContext: appContext)
     self.clipsToBounds = true
   }
 
   // MARK: - lifecycle
 
+  private func loadAssetIfNeeded() {
+    guard let url = self.url, self.loadedAsset == nil, self.assetLoadingTask == nil else {
+      return
+    }
+    self.startAssetLoading(for: url)
+  }
+
   private func startAssetLoading(for url: URL) {
-    let asset = AVAsset(url: url)
-    self.assetLoadingTask = Task { [weak self] in
+    let asset = AVURLAsset(url: url)
+    self.assetLoadingTask = Task { @MainActor [weak self] in
       do {
-        let _ = try await asset.load(.duration, .tracks)
-
-        guard !Task.isCancelled else { return }
-
-        await MainActor.run {
-          guard self?.url == url else { return }
-          self?.loadedAsset = asset
-          self?.assetLoadingTask = nil
-
-          if self?.isViewActive == true && self?.player == nil && self?.pViewController != nil {
-            self?.finishSetupIfReady()
-          }
+        _ = try await withTaskCancellationHandler {
+          try await asset.load(.duration, .tracks)
+        } onCancel: {
+          asset.cancelLoading()
         }
+
+        guard !Task.isCancelled, let self, self.url == url else { return }
+        self.assetLoadingTask = nil
+        self.loadedAsset = asset
+        self.finishSetupIfReady()
       } catch {
-        guard !Task.isCancelled else { return }
-        await MainActor.run {
-          guard self?.url == url else { return }
-          self?.assetLoadingTask = nil
-          self?.isLoading = false
-          self?.onError([
-            "error": "Failed to load video",
-            "errorDescription": "\(error.localizedDescription)",
-          ])
+        guard !Task.isCancelled, let self, self.url == url else { return }
+        self.assetLoadingTask = nil
+
+        // Only report the error if we're waiting on this asset to play. Otherwise, we'll try again
+        // the next time the view becomes active
+        if self.isDestroyed {
+          return
         }
+        self.destroy()
+        self.onError([
+          "error": "Failed to load video",
+          "errorDescription": "\(error.localizedDescription)",
+        ])
       }
     }
   }
 
   private func setup() {
-    guard url != nil, self.player == nil else {
+    guard url != nil, self.isDestroyed else {
       return
     }
 
+    self.loadAssetIfNeeded()
     self.isDestroyed = false
     self.isLoading = true
 
@@ -170,7 +181,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   }
 
   private func finishSetupIfReady() {
-    guard let asset = self.loadedAsset,
+    guard !self.isDestroyed,
+          let asset = self.loadedAsset,
           let pViewController = self.pViewController,
           self.player == nil else {
       return
@@ -194,31 +206,29 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
   private func destroy() {
     self.isDestroyed = true
-
-    guard let player = self.player else {
-      return
-    }
-
     self.ignoreAutoplay = false
 
     // Fire final events
     self.pause()
     self.isLoading = false
 
-    // Remove periodic time observer
-    if let periodicTimeObserver = self.periodicTimeObserver {
-      player.removeTimeObserver(periodicTimeObserver)
-      self.periodicTimeObserver = nil
-    }
+    // We might not have a player yet if we were still waiting on the asset
+    if let player = self.player {
+      // Remove periodic time observer
+      if let periodicTimeObserver = self.periodicTimeObserver {
+        player.removeTimeObserver(periodicTimeObserver)
+        self.periodicTimeObserver = nil
+      }
 
-    // Remove any observers from the player item
-    if let playerItem = player.currentItem {
-      removeObserversFromPlayerItem(playerItem)
-    }
+      // Remove any observers from the player item
+      if let playerItem = player.currentItem {
+        removeObserversFromPlayerItem(playerItem)
+      }
 
-    // Recycle the player
-    PlayerManager.shared.recyclePlayer(player)
-    self.player = nil
+      // Recycle the player
+      PlayerManager.shared.recyclePlayer(player)
+      self.player = nil
+    }
 
     // Remove the player from the controller
     self.pViewController?.player = nil
@@ -359,9 +369,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.isViewActive = active
     if active {
-      if let url = self.url, self.loadedAsset == nil, self.assetLoadingTask == nil {
-        self.startAssetLoading(for: url)
-      }
+      self.loadAssetIfNeeded()
 
       if self.autoplay || self.forceTakeover {
         self.setup()
@@ -375,28 +383,36 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   // MARK: - controls
 
   private func play() {
-    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-      self?.player?.play()
+    if let player = self.player {
+      VideoView.playbackQueue.async {
+        player.play()
+      }
     }
     self.isPlaying = true
   }
 
   private func pause() {
-    self.player?.pause()
+    if let player = self.player {
+      VideoView.playbackQueue.async {
+        player.pause()
+      }
+    }
     self.isPlaying = false
   }
 
   func togglePlayback() {
     if self.isPlaying {
       self.pause()
+    } else if self.isDestroyed {
+      ViewManager.shared.setActiveView(self)
+      self.ignoreAutoplay = true
+      self.setup()
     } else {
+      // If we're still waiting on the asset, start playing once it's ready
       if self.player == nil {
-        ViewManager.shared.setActiveView(self)
         self.ignoreAutoplay = true
-        self.setup()
-      } else {
-        self.play()
       }
+      self.play()
     }
   }
 
