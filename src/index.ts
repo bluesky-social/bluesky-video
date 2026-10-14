@@ -1,10 +1,9 @@
-import {BlueskyVideoError, BlueskyVideoViewProps} from './BlueskyVideo.types'
+import type {
+  BlueskyVideoError,
+  BlueskyVideoViewProps
+} from './BlueskyVideo.types'
 import {updateActiveVideoViewAsync} from './BlueskyVideoModule'
 import {BlueskyVideoView} from './BlueskyVideoView'
 
-export {
-  BlueskyVideoError,
-  BlueskyVideoView,
-  BlueskyVideoViewProps,
-  updateActiveVideoViewAsync
-}
+export {BlueskyVideoView, updateActiveVideoViewAsync}
+export type {BlueskyVideoError, BlueskyVideoViewProps}
