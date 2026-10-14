@@ -162,9 +162,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     pViewController.showsPlaybackControls = false
     pViewController.delegate = self
     pViewController.videoGravity = .resizeAspectFill
-    if #available(iOS 16.0, *) {
-      pViewController.allowsVideoFrameAnalysis = false
-    }
+    pViewController.allowsVideoFrameAnalysis = false
     self.addSubview(pViewController.view)
     self.pViewController = pViewController
 
@@ -377,14 +375,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   // MARK: - controls
 
   private func play() {
-    if #available(iOS 16.0, *) {
-      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-        self?.player?.play()
-      }
-    } else {
-      DispatchQueue.main.async { [weak self] in
-        self?.player?.play()
-      }
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      self?.player?.play()
     }
     self.isPlaying = true
   }
