@@ -23,10 +23,10 @@ if (useManagedAndroidSdkVersions) {
     }
   }
   project.android {
-    compileSdkVersion safeExtGet("compileSdkVersion", 34)
+    compileSdkVersion safeExtGet("compileSdkVersion", 35)
     defaultConfig {
-      minSdkVersion safeExtGet("minSdkVersion", 21)
-      targetSdkVersion safeExtGet("targetSdkVersion", 34)
+      minSdkVersion safeExtGet("minSdkVersion", 23)
+      targetSdkVersion safeExtGet("targetSdkVersion", 35)
     }
   }
 }
@@ -46,8 +46,8 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
 
-    // Remember to keep this in sync with the version in `expo-audio`
-  def androidxMedia3Version = "1.4.0"
+  // Keep this in sync with the version in `expo-video`.
+  def androidxMedia3Version = "1.9.0"
   implementation "androidx.media3:media3-session:${androidxMedia3Version}"
   implementation "androidx.media3:media3-exoplayer:${androidxMedia3Version}"
   implementation "androidx.media3:media3-exoplayer-dash:${androidxMedia3Version}"
@@ -55,9 +55,7 @@ dependencies {
   implementation "androidx.media3:media3-ui:${androidxMedia3Version}"
   implementation "androidx.media3:media3-datasource-okhttp:${androidxMedia3Version}"
 
-  def fragment_version = "1.6.2"
+  def fragment_version = "1.8.9"
   implementation "androidx.fragment:fragment:$fragment_version"
   implementation "androidx.fragment:fragment-ktx:$fragment_version"
 }
-
-
