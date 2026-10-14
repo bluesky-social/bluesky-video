@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
+import android.view.LayoutInflater
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
@@ -50,7 +51,9 @@ class BlueskyVideoView(
     var isFullscreen: Boolean = false
         private set(value) {
             field = value
-            this.playerView.useController = value
+            // The inline PlayerView has no controller (see bluesky_video_player_content.xml), and
+            // setUseController(true) throws without one. Fullscreen playback uses
+            // FullscreenActivity's own PlayerView, which has its controls.
 
             onFullscreenChange(
                 mapOf(
@@ -124,7 +127,7 @@ class BlueskyVideoView(
 
     init {
         val playerView =
-            PlayerView(context).apply {
+            (LayoutInflater.from(context).inflate(R.layout.bluesky_video_player, this, false) as PlayerView).apply {
                 setBackgroundColor(Color.BLACK)
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                 useController = false
