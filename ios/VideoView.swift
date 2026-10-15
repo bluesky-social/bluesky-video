@@ -241,10 +241,20 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
         }
       }
       if playerItem.status == AVPlayerItem.Status.failed {
-        self.onError([
-          "error": "Failed to load video",
-          "errorDescription": playerItem.error?.localizedDescription ?? "",
-        ])
+        self.isLoading = false
+
+        var event: [String: Any] = ["error": "Failed to load video"]
+        if let error = playerItem.error as NSError? {
+          event["errorDescription"] = error.localizedDescription
+          event["errorDomain"] = error.domain
+          event["errorCode"] = error.code
+          // AVFoundation usually reports a generic -11800 and keeps the real cause here
+          if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+            event["underlyingErrorDomain"] = underlying.domain
+            event["underlyingErrorCode"] = underlying.code
+          }
+        }
+        self.onError(event)
       }
     }
   }
