@@ -5,15 +5,21 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private var pViewController: AVPlayerViewController?
   private var player: AVPlayer?
   private var periodicTimeObserver: Any?
+  private var loadedAsset: AVAsset?
+  private var assetLoadingTask: Task<Void, Never>?
 
   // props
   var autoplay: Bool = true
   var beginMuted = true
   var url: URL? {
     didSet {
-      if url == nil || url == oldValue {
+      guard let url, url != oldValue else {
         return
       }
+
+      self.assetLoadingTask?.cancel()
+      self.loadedAsset = nil
+      self.startAssetLoading(for: url)
 
       if self.isViewActive {
         self.destroy()
@@ -95,21 +101,67 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private var enteredFullScreenMuted = true
   private var enteredFullScreenWithIdleTimerDisabled = false
   private var ignoreAutoplay = false
+  // False from setup() until destroy(), including while we wait for the asset to load and don't have
+  // a player yet
   private var isDestroyed = true
 
+  // Play/pause are nonisolated on iOS 16+, so we send them from a serial queue to keep them off the
+  // main thread while still running in the order they were called
+  private static let playbackQueue = DispatchQueue(
+    label: "app.bsky.video.playback", qos: .userInitiated)
+
   required init(appContext: AppContext? = nil) {
-    self.pViewController = AVPlayerViewController()
     super.init(appContext: appContext)
     self.clipsToBounds = true
   }
 
   // MARK: - lifecycle
 
+  private func loadAssetIfNeeded() {
+    guard let url = self.url, self.loadedAsset == nil, self.assetLoadingTask == nil else {
+      return
+    }
+    self.startAssetLoading(for: url)
+  }
+
+  private func startAssetLoading(for url: URL) {
+    let asset = AVURLAsset(url: url)
+    self.assetLoadingTask = Task { @MainActor [weak self] in
+      do {
+        _ = try await withTaskCancellationHandler {
+          try await asset.load(.duration, .tracks)
+        } onCancel: {
+          asset.cancelLoading()
+        }
+
+        guard !Task.isCancelled, let self, self.url == url else { return }
+        self.assetLoadingTask = nil
+        self.loadedAsset = asset
+        self.finishSetupIfReady()
+      } catch {
+        guard !Task.isCancelled, let self, self.url == url else { return }
+        self.assetLoadingTask = nil
+
+        // Only report the error if we're waiting on this asset to play. Otherwise, we'll try again
+        // the next time the view becomes active
+        if self.isDestroyed {
+          return
+        }
+        self.destroy()
+        self.onError([
+          "error": "Failed to load video",
+          "errorDescription": "\(error.localizedDescription)",
+        ])
+      }
+    }
+  }
+
   private func setup() {
-    guard let url = url, self.player == nil else {
+    guard url != nil, self.isDestroyed else {
       return
     }
 
+    self.loadAssetIfNeeded()
     self.isDestroyed = false
     self.isLoading = true
 
@@ -121,66 +173,62 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     pViewController.showsPlaybackControls = false
     pViewController.delegate = self
     pViewController.videoGravity = .resizeAspectFill
-    if #available(iOS 16.0, *) {
-      pViewController.allowsVideoFrameAnalysis = false
-    }
+    pViewController.allowsVideoFrameAnalysis = false
+    self.addSubview(pViewController.view)
+    self.pViewController = pViewController
 
-    // Recycle the current player if there is one
-    if let currentPlayer = self.player {
-      PlayerManager.shared.recyclePlayer(currentPlayer)
+    self.finishSetupIfReady()
+  }
+
+  private func finishSetupIfReady() {
+    guard !self.isDestroyed,
+          let asset = self.loadedAsset,
+          let pViewController = self.pViewController,
+          self.player == nil else {
+      return
     }
 
     // Get a new player to use
     let player = PlayerManager.shared.dequeuePlayer()
 
-    // Add observers to the player
-    self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
-
-    pViewController.player = player
-    self.addSubview(pViewController.view)
-
-    self.pViewController = pViewController
-    self.player = player
-
     // Get the player item and add it to the player
-    DispatchQueue.global(qos: .background).async { [weak self] in
-      let playerItem = AVPlayerItem(url: url)
-      playerItem.preferredForwardBufferDuration = 5
+    let playerItem = AVPlayerItem(asset: asset)
+    playerItem.preferredForwardBufferDuration = 5
 
-      DispatchQueue.main.async {
-        self?.player?.replaceCurrentItem(with: playerItem)
-        self?.addObserversToPlayerItem(playerItem)
-      }
-    }
+    self.addObserversToPlayerItem(playerItem)
+    player.replaceCurrentItem(with: playerItem)
+
+    self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
+    pViewController.player = player
+
+    self.player = player
   }
 
   private func destroy() {
     self.isDestroyed = true
-
-    guard let player = self.player else {
-      return
-    }
-
     self.ignoreAutoplay = false
 
     // Fire final events
     self.pause()
     self.isLoading = false
 
-    // Remove period time observer and nil it
-    if let periodicTimeObserver = self.periodicTimeObserver {
-      self.player?.removeTimeObserver(periodicTimeObserver)
-      self.periodicTimeObserver = nil
-    }
+    // We might not have a player yet if we were still waiting on the asset
+    if let player = self.player {
+      // Remove periodic time observer
+      if let periodicTimeObserver = self.periodicTimeObserver {
+        player.removeTimeObserver(periodicTimeObserver)
+        self.periodicTimeObserver = nil
+      }
 
-    // Remove any observers from the player item and nil the item
-    if let playerItem = self.player?.currentItem {
-      removeObserversFromPlayerItem(playerItem)
-    }
+      // Remove any observers from the player item
+      if let playerItem = player.currentItem {
+        removeObserversFromPlayerItem(playerItem)
+      }
 
-    // Recycle the player and nil the player
-    PlayerManager.shared.recyclePlayer(player)
-    self.player = nil
+      // Recycle the player
+      PlayerManager.shared.recyclePlayer(player)
+      self.player = nil
+    }
 
     // Remove the player from the controller
     self.pViewController?.player = nil
@@ -203,6 +251,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     if newWindow == nil {
       ViewManager.shared.remove(self)
+      self.assetLoadingTask?.cancel()
+      self.assetLoadingTask = nil
       self.destroy()
     }
   }
@@ -228,7 +278,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       return
     }
 
-    // status changes for the player item, i.e. for loading
+    // Status changes for the player item, i.e. for loading
     if keyPath == "status" {
       if playerItem.status == AVPlayerItem.Status.readyToPlay {
         self.isLoading = false
@@ -319,6 +369,8 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.isViewActive = active
     if active {
+      self.loadAssetIfNeeded()
+
       if self.autoplay || self.forceTakeover {
         self.setup()
       }
@@ -331,26 +383,36 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   // MARK: - controls
 
   private func play() {
-    self.player?.play()
+    if let player = self.player {
+      VideoView.playbackQueue.async {
+        player.play()
+      }
+    }
     self.isPlaying = true
   }
 
   private func pause() {
-    self.player?.pause()
+    if let player = self.player {
+      VideoView.playbackQueue.async {
+        player.pause()
+      }
+    }
     self.isPlaying = false
   }
 
   func togglePlayback() {
     if self.isPlaying {
       self.pause()
+    } else if self.isDestroyed {
+      ViewManager.shared.setActiveView(self)
+      self.ignoreAutoplay = true
+      self.setup()
     } else {
+      // If we're still waiting on the asset, start playing once it's ready
       if self.player == nil {
-        ViewManager.shared.setActiveView(self)
         self.ignoreAutoplay = true
-        self.setup()
-      } else {
-        self.play()
       }
+      self.play()
     }
   }
 
