@@ -144,6 +144,11 @@ class BlueskyVideoView(
         )
         this.playerView = playerView
 
+        // A SurfaceView is a separate surface layer that has to be repositioned on every frame
+        // while the feed scrolls, even when nothing plays in it. Keep it gone until a player is
+        // attached; inactive videos are covered by their thumbnail anyway.
+        playerView.videoSurfaceView?.visibility = View.GONE
+
         // Child views are detached before their parents, so the SurfaceView is torn down before
         // onDetachedFromWindow runs here, and its surfaceDestroyed callback makes a still-live
         // player block the main thread until the playback thread lets go of the surface. This
@@ -185,6 +190,7 @@ class BlueskyVideoView(
 
         val player = this.createExoPlayer()
         this.player = player
+        this.playerView.videoSurfaceView?.visibility = View.VISIBLE
         this.playerView.player = player
 
         val playerScope = CoroutineScope(Job() + Dispatchers.Main)
@@ -220,6 +226,11 @@ class BlueskyVideoView(
         this.playerView.player = null
         this.playerScope?.cancel()
         this.playerScope = null
+        if (!surfaceIsGoingAway) {
+            // Hiding the surface runs the surfaceDestroyed callback from init, which is a no-op
+            // now that there is no player.
+            this.playerView.videoSurfaceView?.visibility = View.GONE
+        }
     }
 
     internal fun onAppBackgrounded(): Boolean {
