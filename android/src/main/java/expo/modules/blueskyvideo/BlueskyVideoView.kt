@@ -14,7 +14,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import expo.modules.kotlin.AppContext
@@ -311,12 +316,14 @@ class BlueskyVideoView(
 
     fun mute() {
         this.player?.volume = 0f
+        this.audioRenderer?.muted = true
         this.isMuted = true
         BlueskyVideoModule.audioFocusManager.abandonAudioFocus()
     }
 
     private fun unmute() {
         BlueskyVideoModule.audioFocusManager.requestAudioFocus()
+        this.audioRenderer?.muted = false
         this.player?.volume = 1f
         this.isMuted = false
     }
@@ -428,9 +435,39 @@ class BlueskyVideoView(
                 .build()
         }
 
+    // The audio renderer of the current player, which skips decoding while the video is muted.
+    private var audioRenderer: SkipWhileMutedAudioRenderer? = null
+
+    private fun createRenderersFactory(): DefaultRenderersFactory =
+        object : DefaultRenderersFactory(context) {
+            override fun buildAudioRenderers(
+                context: Context,
+                extensionRendererMode: Int,
+                mediaCodecSelector: MediaCodecSelector,
+                enableDecoderFallback: Boolean,
+                audioSink: AudioSink,
+                eventHandler: android.os.Handler,
+                eventListener: AudioRendererEventListener,
+                out: ArrayList<Renderer>,
+            ) {
+                val renderer =
+                    SkipWhileMutedAudioRenderer(
+                        context,
+                        PrewarmingCodecAdapterFactory(codecAdapterFactory),
+                        mediaCodecSelector,
+                        enableDecoderFallback,
+                        eventHandler,
+                        eventListener,
+                        EndTrackingAudioSink(audioSink),
+                    )
+                audioRenderer = renderer
+                out.add(renderer)
+            }
+        }
+
     private fun createExoPlayer(): ExoPlayer =
         ExoPlayer
-            .Builder(context)
+            .Builder(context, createRenderersFactory())
             .apply {
                 setLooper(context.mainLooper)
                 // Make release() asynchronous, see destroy().
