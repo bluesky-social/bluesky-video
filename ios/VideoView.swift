@@ -331,6 +331,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   // MARK: - controls
 
   private func play() {
+    if self.player?.isMuted == true {
+      AudioManagement.shared.ensureMixing()
+    }
     self.player?.play()
     self.isPlaying = true
   }
