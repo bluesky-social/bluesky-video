@@ -163,6 +163,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     self.ignoreAutoplay = false
 
+    // An unmuted player holds audio focus, so it has to be released (and other apps notified) when
+    // the player goes away, otherwise their audio never resumes.
+    let heldAudioFocus = !player.isMuted
+
     // Fire final events
     self.pause()
     self.isLoading = false
@@ -181,6 +185,10 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     // Recycle the player and nil the player
     PlayerManager.shared.recyclePlayer(player)
     self.player = nil
+
+    if heldAudioFocus {
+      AudioManagement.shared.setPlayingVideo(false)
+    }
 
     // Remove the player from the controller
     self.pViewController?.player = nil
@@ -331,6 +339,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   // MARK: - controls
 
   private func play() {
+    if self.player?.isMuted == true {
+      AudioManagement.shared.ensureMixing()
+    }
     self.player?.play()
     self.isPlaying = true
   }
