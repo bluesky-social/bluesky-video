@@ -423,10 +423,18 @@ class BlueskyVideoView(
     }
 
     fun isViewableEnough(): Boolean {
-        val positionOnScreen = this.getPositionOnScreen() ?: return false
-        val visibleArea = positionOnScreen.width() * positionOnScreen.height()
+        if (!this.isShown) {
+            return false
+        }
+        // Clipped by every ancestor, so a view on an adjacent (attached but
+        // offscreen) pager page counts as not visible.
+        val visibleRect = Rect()
+        if (!this.getGlobalVisibleRect(visibleRect)) {
+            return false
+        }
+        val visibleArea = visibleRect.width() * visibleRect.height()
         val totalArea = this.width * this.height
-        return visibleArea >= 0.5 * totalArea
+        return totalArea > 0 && visibleArea >= 0.5 * totalArea
     }
 
     // Setup helpers
