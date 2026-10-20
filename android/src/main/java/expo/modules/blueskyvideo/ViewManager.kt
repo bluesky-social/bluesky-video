@@ -57,7 +57,7 @@ class ViewManager {
 
                 views.forEach { view ->
                     if (!view.isViewableEnough()) {
-                        return
+                        return@forEach
                     }
 
                     val position = view.getPositionOnScreen() ?: return@forEach
