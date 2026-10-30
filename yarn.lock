@@ -4804,12 +4804,31 @@ expo-modules-autolinking@3.0.24:
     require-from-string "^2.0.2"
     resolve-from "^5.0.0"
 
-expo-modules-core@3.0.29, expo-modules-core@~3.0.29:
+expo-modules-core@3.0.29:
   version "3.0.29"
   resolved "https://registry.yarnpkg.com/expo-modules-core/-/expo-modules-core-3.0.29.tgz#99287eba52f21784bcb2e4f4edd4fc4c21b5b265"
   integrity sha512-LzipcjGqk8gvkrOUf7O2mejNWugPkf3lmd9GkqL9WuNyeN2fRwU0Dn77e3ZUKI3k6sI+DNwjkq4Nu9fNN9WS7Q==
   dependencies:
     invariant "^2.2.4"
+
+expo-modules-core@~58.0.14:
+  version "58.0.14"
+  resolved "https://registry.yarnpkg.com/expo-modules-core/-/expo-modules-core-58.0.14.tgz#6dd15196b217f8d35b15972b8e333f4cfb11c377"
+  integrity sha512-5iPIvnq69pOGw8Iuf5ceVxW+CNXUizuu4h91yCcZIB4xhle3jUeqsqP779CI+duPaJjdrWjEyQ83+P1NvLB9wg==
+  dependencies:
+    expo-modules-jsi "~58.0.9"
+    expo-modules-macros "0.15.0"
+    invariant "^2.2.4"
+
+expo-modules-jsi@~58.0.9:
+  version "58.0.12"
+  resolved "https://registry.yarnpkg.com/expo-modules-jsi/-/expo-modules-jsi-58.0.12.tgz#767d0dfebfa89cdfeb1517783d57b4fc950f7eba"
+  integrity sha512-KjuY5KtpBvhtdm5fN1ZQqC8WR10ODpCHlFRpEGzqTlkZC7YxURcihXy2qmGVUFXemomveZN02u64rrORa3gCqA==
+
+expo-modules-macros@0.15.0:
+  version "0.15.0"
+  resolved "https://registry.yarnpkg.com/expo-modules-macros/-/expo-modules-macros-0.15.0.tgz#80b91c8aecd637311e9b00ad50497fa904749f04"
+  integrity sha512-SPNpejC1GTb5g519PQXRHnwNjC3NJE/IP8yvuwwKJ9cfel7g7gQk/11qsvlNQBdk/AOnu2uhsmBMpTVit2WMfA==
 
 expo-server@^1.0.5:
   version "1.0.5"
