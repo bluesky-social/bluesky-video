@@ -1,5 +1,22 @@
 import {NativeSyntheticEvent, StyleProp, ViewStyle} from 'react-native'
 
+export type BlueskyVideoError = {
+  /** Generic message, the same on every platform */
+  error: string
+  errorDescription?: string
+  /** iOS only: NSError domain */
+  errorDomain?: string
+  /** iOS: NSError code. Android: PlaybackException error code */
+  errorCode?: number
+  /** Android only: PlaybackException error code name, e.g. ERROR_CODE_IO_BAD_HTTP_STATUS */
+  errorCodeName?: string
+  /** Android only: the HTTP status, when the error is ERROR_CODE_IO_BAD_HTTP_STATUS */
+  httpResponseCode?: number
+  /** iOS only: the underlying error, which usually holds the real cause */
+  underlyingErrorDomain?: string
+  underlyingErrorCode?: number
+}
+
 export type BlueskyVideoViewProps = {
   url: string
   autoplay: boolean
@@ -28,6 +45,6 @@ export type BlueskyVideoViewProps = {
   onFullscreenChange?: (
     e: NativeSyntheticEvent<{isFullscreen: boolean}>
   ) => void
-  onError?: (e: NativeSyntheticEvent<{error: string}>) => void
+  onError?: (e: NativeSyntheticEvent<BlueskyVideoError>) => void
   style?: StyleProp<ViewStyle>
 }
