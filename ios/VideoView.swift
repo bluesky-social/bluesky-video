@@ -46,6 +46,19 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
   }
 
+  /// Playback has started but is waiting for more data. Unlike `isLoading`, this only covers stalls
+  /// after the video has loaded.
+  private var isBuffering: Bool = false {
+    didSet {
+      if isBuffering == oldValue {
+        return
+      }
+      self.onBufferingChange([
+        "isBuffering": isBuffering
+      ])
+    }
+  }
+
   private var isViewActive: Bool = false {
     didSet {
       if isViewActive == oldValue {
@@ -88,6 +101,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private let onLoadingChange = EventDispatcher()
   private let onMutedChange = EventDispatcher()
   private let onStatusChange = EventDispatcher()
+  private let onBufferingChange = EventDispatcher()
   private let onTimeRemainingChange = EventDispatcher()
   private let onFullscreenChange = EventDispatcher()
   private let onError = EventDispatcher()
@@ -96,6 +110,13 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   private var enteredFullScreenWithIdleTimerDisabled = false
   private var ignoreAutoplay = false
   private var isDestroyed = true
+
+  /// The item reported a playback stall and hasn't buffered enough to continue yet.
+  private var isStalled = false
+  /// The item failed while the app was in the background, see `reloadIfFailed`.
+  private var needsReloadOnForeground = false
+  private var timeControlStatusObservation: NSKeyValueObservation?
+  private var likelyToKeepUpObservation: NSKeyValueObservation?
 
   required init(appContext: AppContext? = nil) {
     self.pViewController = AVPlayerViewController()
@@ -135,6 +156,9 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
 
     // Add observers to the player
     self.periodicTimeObserver = self.createPeriodicTimeObserver(player)
+    self.timeControlStatusObservation = player.observe(\.timeControlStatus) { [weak self] _, _ in
+      self?.syncPlaybackStateOnMain()
+    }
 
     pViewController.player = player
     self.addSubview(pViewController.view)
@@ -162,6 +186,12 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     }
 
     self.ignoreAutoplay = false
+    self.isStalled = false
+    self.needsReloadOnForeground = false
+
+    // Stop following the player before it goes back to the pool, where it's paused and reused
+    self.timeControlStatusObservation?.invalidate()
+    self.timeControlStatusObservation = nil
 
     // An unmuted player holds audio focus, so it has to be released (and other apps notified) when
     // the player goes away, otherwise their audio never resumes.
@@ -170,6 +200,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     // Fire final events
     self.pause()
     self.isLoading = false
+    self.isBuffering = false
 
     // Remove period time observer and nil it
     if let periodicTimeObserver = self.periodicTimeObserver {
@@ -222,6 +253,71 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
     self.play()
   }
 
+  @objc func playerItemPlaybackStalled(notification: NSNotification) {
+    DispatchQueue.main.async { [weak self] in
+      guard let self, self.isPlaying else {
+        return
+      }
+      self.isStalled = true
+      self.syncPlaybackState()
+    }
+  }
+
+  private func syncPlaybackStateOnMain() {
+    if Thread.isMainThread {
+      self.syncPlaybackState()
+    } else {
+      DispatchQueue.main.async { [weak self] in
+        self?.syncPlaybackState()
+      }
+    }
+  }
+
+  /// AVPlayer pauses itself on audio interruptions (calls, Siri, other apps' audio), when
+  /// headphones are unplugged, and from the fullscreen controls, so the reported status follows the
+  /// player instead of only our own `play()` and `pause()` calls. This reads the player's current
+  /// state rather than the KVO change, so a late callback can't apply a stale value.
+  private func syncPlaybackState() {
+    guard let player = self.player, !self.isDestroyed else {
+      return
+    }
+
+    switch player.timeControlStatus {
+    case .playing:
+      self.isPlaying = true
+      if player.currentItem?.isPlaybackLikelyToKeepUp != false {
+        self.isStalled = false
+      }
+    case .paused:
+      if self.isStalled {
+        // With `automaticallyWaitsToMinimizeStalling` off, a stall can leave the player paused
+        // rather than waiting, so resume ourselves once enough has buffered.
+        if player.currentItem?.isPlaybackLikelyToKeepUp == true {
+          self.isStalled = false
+          self.play()
+        }
+      } else if !self.isAtEnd(player) {
+        // At the end the player pauses itself, and `playerDidFinishPlaying` restarts the loop.
+        self.isPlaying = false
+      }
+    case .waitingToPlayAtSpecifiedRate:
+      break
+    @unknown default:
+      break
+    }
+
+    self.isBuffering =
+      !self.isLoading && self.isPlaying
+      && (self.isStalled || player.timeControlStatus == .waitingToPlayAtSpecifiedRate)
+  }
+
+  private func isAtEnd(_ player: AVPlayer) -> Bool {
+    guard let item = player.currentItem, item.duration.isNumeric else {
+      return false
+    }
+    return item.duration.seconds - item.currentTime().seconds < 0.1
+  }
+
   override func observeValue(
     forKeyPath keyPath: String?,
     of object: Any?,
@@ -250,6 +346,13 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       }
       if playerItem.status == AVPlayerItem.Status.failed {
         self.isLoading = false
+
+        // iOS can tear down the decoding pipeline of a backgrounded app, failing the item. That
+        // isn't the video's fault, so reload it when the app comes back instead of reporting it.
+        if UIApplication.shared.applicationState == .background {
+          self.needsReloadOnForeground = true
+          return
+        }
 
         var event: [String: Any] = ["error": "Failed to load video"]
         if let error = playerItem.error as NSError? {
@@ -302,13 +405,62 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
       selector: #selector(playerDidFinishPlaying),
       name: .AVPlayerItemDidPlayToEndTime,
       object: playerItem)
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(playerItemPlaybackStalled),
+      name: .AVPlayerItemPlaybackStalled,
+      object: playerItem)
     playerItem.addObserver(self, forKeyPath: "status", options: [.old, .new], context: nil)
+    self.likelyToKeepUpObservation = playerItem.observe(\.isPlaybackLikelyToKeepUp) {
+      [weak self] _, _ in
+      self?.syncPlaybackStateOnMain()
+    }
   }
 
   func removeObserversFromPlayerItem(_ playerItem: AVPlayerItem) {
     NotificationCenter.default.removeObserver(
       self, name: .AVPlayerItemDidPlayToEndTime, object: playerItem)
+    NotificationCenter.default.removeObserver(
+      self, name: .AVPlayerItemPlaybackStalled, object: playerItem)
     playerItem.removeObserver(self, forKeyPath: "status")
+    self.likelyToKeepUpObservation?.invalidate()
+    self.likelyToKeepUpObservation = nil
+  }
+
+  // MARK: - recovery
+
+  /// Called when the app returns to the foreground. An item that failed in the background (see the
+  /// status observer) or a player that failed outright is rebuilt instead of staying broken.
+  func reloadIfFailed(wasPlayingPlayer: AVPlayer?) {
+    guard let player = self.player else {
+      return
+    }
+    if self.needsReloadOnForeground || player.status == .failed
+      || player.currentItem?.status == .failed
+    {
+      self.reload(resume: self.isPlaying || player === wasPlayingPlayer)
+    }
+  }
+
+  /// Replaces the player and its item, e.g. after the system reset its media services, which
+  /// invalidates every existing player.
+  func reload(resume: Bool? = nil) {
+    guard let player = self.player, !self.isFullscreen else {
+      return
+    }
+    let resume = resume ?? self.isPlaying
+    let wasMuted = player.isMuted
+
+    self.destroy()
+    // The next player starts muted, so keep JS in sync until it's unmuted again
+    if !wasMuted {
+      self.onMutedChange([
+        "isMuted": true
+      ])
+    }
+
+    self.ignoreAutoplay = resume
+    self.setup()
   }
 
   // MARK: - AVPlayerViewControllerDelegate
@@ -363,6 +515,7 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
   }
 
   private func pause() {
+    self.isStalled = false
     self.player?.pause()
     self.isPlaying = false
   }
