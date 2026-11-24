@@ -147,7 +147,12 @@ function Player({
           setIsLoading(e.nativeEvent.isLoading)
         }}
         onTimeRemainingChange={e => {
-          console.log('timeRemaining', e.nativeEvent.timeRemaining)
+          console.log(
+            'timeRemaining',
+            e.nativeEvent.timeRemaining,
+            'duration',
+            e.nativeEvent.duration
+          )
         }}
         onPlayerPress={Platform.OS === 'android' ? onPress : undefined}
       />

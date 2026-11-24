@@ -16,7 +16,14 @@ export type BlueskyVideoViewProps = {
     e: NativeSyntheticEvent<{status: 'playing' | 'paused'}>
   ) => void
   onTimeRemainingChange?: (
-    e: NativeSyntheticEvent<{timeRemaining: number}>
+    e: NativeSyntheticEvent<{
+      timeRemaining: number
+      /**
+       * Total length of the video in seconds. Absent until the length is
+       * known (e.g. before the video has loaded).
+       */
+      duration?: number
+    }>
   ) => void
   onFullscreenChange?: (
     e: NativeSyntheticEvent<{isFullscreen: boolean}>
