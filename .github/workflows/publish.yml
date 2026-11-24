@@ -12,6 +12,11 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      # setup-node's .npmrc references ${NODE_AUTH_TOKEN}, and yarn 1 fails
+      # when it's unset. setup-node v4 used to set this placeholder itself;
+      # npm publish swaps it for a token from trusted publishing (OIDC).
+      NODE_AUTH_TOKEN: XXXXX-XXXXX-XXXXX-XXXXX
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
