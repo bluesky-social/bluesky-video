@@ -5,6 +5,7 @@
 //  Created by Hailey on 9/10/24.
 //
 
+import AVFoundation
 import Foundation
 
 class ViewManager: Manager<VideoView> {
@@ -88,6 +89,20 @@ class ViewManager: Manager<VideoView> {
     }
   }
 
+
+  /// See `VideoView.reloadIfFailed`.
+  func reloadFailedViews(wasPlayingPlayer: AVPlayer?) {
+    self.getEnumerator()?.forEach { view in
+      (view as? VideoView)?.reloadIfFailed(wasPlayingPlayer: wasPlayingPlayer)
+    }
+  }
+
+  /// Rebuilds every player, which a media services reset leaves unusable.
+  func reloadAllViews() {
+    self.getEnumerator()?.forEach { view in
+      (view as? VideoView)?.reload()
+    }
+  }
 
   private func clearActiveView() {
     if let currentlyActiveView = self.currentlyActiveView {

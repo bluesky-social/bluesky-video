@@ -3,17 +3,38 @@ import AVKit
 
 public class BlueskyVideoModule: Module {
   private var wasPlayingPlayer: AVPlayer?
+  private var mediaServicesResetObserver: NSObjectProtocol?
 
   public func definition() -> ModuleDefinition {
     Name("BlueskyVideo")
 
     OnCreate {
       AudioManagement.shared.setPlayingVideo(false)
+
+      // When the system resets its media services (e.g. after the media server crashes), every
+      // player and the audio session configuration become invalid and have to be rebuilt.
+      self.mediaServicesResetObserver = NotificationCenter.default.addObserver(
+        forName: AVAudioSession.mediaServicesWereResetNotification,
+        object: nil,
+        queue: .main
+      ) { _ in
+        AudioManagement.shared.onMediaServicesReset()
+        ViewManager.shared.reloadAllViews()
+      }
+    }
+
+    OnDestroy {
+      if let observer = self.mediaServicesResetObserver {
+        NotificationCenter.default.removeObserver(observer)
+        self.mediaServicesResetObserver = nil
+      }
     }
 
     OnAppEntersForeground {
-      self.wasPlayingPlayer?.play()
+      let wasPlayingPlayer = self.wasPlayingPlayer
       self.wasPlayingPlayer = nil
+      wasPlayingPlayer?.play()
+      ViewManager.shared.reloadFailedViews(wasPlayingPlayer: wasPlayingPlayer)
     }
 
     OnAppEntersBackground {
@@ -36,6 +57,7 @@ public class BlueskyVideoModule: Module {
         "onLoadingChange",
         "onMutedChange",
         "onStatusChange",
+        "onBufferingChange",
         "onTimeRemainingChange",
         "onFullscreenChange",
         "onError"
