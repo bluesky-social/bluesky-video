@@ -14,6 +14,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -500,6 +501,10 @@ class BlueskyVideoView(
                                     error.message?.let { put("errorDescription", it) }
                                     put("errorCode", error.errorCode)
                                     put("errorCodeName", error.errorCodeName)
+                                    // ERROR_CODE_IO_BAD_HTTP_STATUS doesn't say which status
+                                    (error.cause as? HttpDataSource.InvalidResponseCodeException)?.let {
+                                        put("httpResponseCode", it.responseCode)
+                                    }
                                 },
                             )
                         }

@@ -10,6 +10,8 @@ export type BlueskyVideoError = {
   errorCode?: number
   /** Android only: PlaybackException error code name, e.g. ERROR_CODE_IO_BAD_HTTP_STATUS */
   errorCodeName?: string
+  /** Android only: the HTTP status, when the error is ERROR_CODE_IO_BAD_HTTP_STATUS */
+  httpResponseCode?: number
   /** iOS only: the underlying error, which usually holds the real cause */
   underlyingErrorDomain?: string
   underlyingErrorCode?: number
