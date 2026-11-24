@@ -270,9 +270,15 @@ class VideoView: ExpoView, AVPlayerViewControllerDelegate {
         return
       }
       let timeRemaining = (duration.seconds - time.seconds).rounded()
-      self?.onTimeRemainingChange([
+      var event: [String: Any] = [
         "timeRemaining": timeRemaining
-      ])
+      ]
+      // The duration is indefinite until the item is ready (and for live
+      // streams), so only report it once it's a real length.
+      if duration.isNumeric && duration.seconds.isFinite && duration.seconds > 0 {
+        event["duration"] = duration.seconds
+      }
+      self?.onTimeRemainingChange(event)
     }
   }
 
