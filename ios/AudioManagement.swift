@@ -41,6 +41,16 @@ class AudioManagement {
     }
   }
 
+  /// A media services reset leaves the session inactive with its default configuration, so forget
+  /// what was last applied and go back to mixing until a video is unmuted again.
+  func onMediaServicesReset() {
+    self.queue.async {
+      self.prevAudioCategory = nil
+      self.prevAudioActive = false
+      try? self.audioSession.setCategory(.ambient)
+    }
+  }
+
   private func setAudioCategory(category: AVAudioSession.Category) {
     self.queue.async {
       if self.audioSession.category == category {

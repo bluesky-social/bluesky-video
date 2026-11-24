@@ -135,6 +135,9 @@ function Player({
         onStatusChange={e => {
           console.log('status', e.nativeEvent.status)
         }}
+        onBufferingChange={e => {
+          console.log('buffering', e.nativeEvent.isBuffering)
+        }}
         onFullscreenChange={e => {
           console.log('fullscreen', e.nativeEvent.isFullscreen)
         }}

@@ -5,6 +5,8 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import androidx.media3.common.util.UnstableApi
 import expo.modules.kotlin.AppContext
 
@@ -61,6 +63,17 @@ class AudioFocusManager(
     }
 
     override fun onAudioFocusChange(focusChange: Int) {
-        // Do nothing
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                Handler(Looper.getMainLooper()).post {
+                    // Forget the request, so resuming with sound asks for focus again
+                    abandonAudioFocus()
+                    ViewManager.onAudioFocusLost()
+                }
+            }
+            // Ducking is done by the system since Android 8. Like expo-video (and iOS), playback
+            // doesn't resume on its own when focus comes back.
+            else -> {}
+        }
     }
 }

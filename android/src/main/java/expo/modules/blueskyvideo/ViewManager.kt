@@ -146,5 +146,9 @@ class ViewManager {
         }
 
         fun getActiveView(): BlueskyVideoView? = currentlyActiveView
+
+        fun onAudioFocusLost() {
+            views.toList().forEach { it.onAudioFocusLost() }
+        }
     }
 }

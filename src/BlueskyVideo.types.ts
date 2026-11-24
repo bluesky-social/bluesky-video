@@ -29,9 +29,19 @@ export type BlueskyVideoViewProps = {
   onLoadingChange?: (e: NativeSyntheticEvent<{isLoading: boolean}>) => void
   onMutedChange?: (e: NativeSyntheticEvent<{isMuted: boolean}>) => void
   onPlayerPress?: () => void
+  /**
+   * Follows the player, so it also reports pauses the system makes itself,
+   * e.g. for an incoming call, another app taking audio focus, or headphones
+   * being unplugged.
+   */
   onStatusChange?: (
     e: NativeSyntheticEvent<{status: 'playing' | 'paused'}>
   ) => void
+  /**
+   * Playback stalled waiting for data after the video had loaded. Use
+   * `onLoadingChange` for the initial load.
+   */
+  onBufferingChange?: (e: NativeSyntheticEvent<{isBuffering: boolean}>) => void
   onTimeRemainingChange?: (
     e: NativeSyntheticEvent<{
       timeRemaining: number
