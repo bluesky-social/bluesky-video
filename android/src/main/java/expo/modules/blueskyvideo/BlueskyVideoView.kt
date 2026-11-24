@@ -15,6 +15,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -93,6 +95,26 @@ class BlueskyVideoView(
             )
         }
 
+    /**
+     * Playback has started but is waiting for more data. Unlike `isLoading`, this only covers
+     * stalls after the video has loaded.
+     */
+    private var isBuffering: Boolean = false
+        set(value) {
+            if (value == field) {
+                return
+            }
+            field = value
+            onBufferingChange(
+                mapOf(
+                    "isBuffering" to value,
+                ),
+            )
+        }
+
+    /** The current player has been ready at least once, see `isBuffering`. */
+    private var hasBecomeReady = false
+
     private var isViewActive: Boolean = false
         set(value) {
             field = value
@@ -120,6 +142,7 @@ class BlueskyVideoView(
     private val onMutedChange by EventDispatcher()
     private val onPlayerPress by EventDispatcher()
     private val onStatusChange by EventDispatcher()
+    private val onBufferingChange by EventDispatcher()
     private val onTimeRemainingChange by EventDispatcher()
     private val onFullscreenChange by EventDispatcher()
     private val onError by EventDispatcher()
@@ -188,6 +211,7 @@ class BlueskyVideoView(
         }
 
         this.isLoading = true
+        this.hasBecomeReady = false
 
         val player = this.createExoPlayer()
         this.player = player
@@ -215,9 +239,16 @@ class BlueskyVideoView(
         val player = this.player ?: return
 
         this.isLoading = false
+        this.isBuffering = false
         this.ignoreAutoplay = false
 
         this.pause()
+
+        // An unmuted player holds audio focus, which has to be given back (as on iOS) so other
+        // apps can resume.
+        if (player.volume > 0f) {
+            BlueskyVideoModule.audioFocusManager.abandonAudioFocus()
+        }
 
         if (!surfaceIsGoingAway) {
             player.clearVideoSurface()
@@ -298,6 +329,11 @@ class BlueskyVideoView(
     // Controls
 
     private fun play() {
+        // Audio focus is given up when another app takes it, so take it back when resuming with
+        // sound. Checks the player rather than isMuted, since a new player always starts silent.
+        if ((this.player?.volume ?: 0f) > 0f) {
+            BlueskyVideoModule.audioFocusManager.requestAudioFocus()
+        }
         this.isPlaying = true
         this.player?.play()
     }
@@ -323,6 +359,7 @@ class BlueskyVideoView(
 
     fun mute() {
         this.player?.volume = 0f
+        this.player?.setHandleAudioBecomingNoisy(false)
         this.isMuted = true
         BlueskyVideoModule.audioFocusManager.abandonAudioFocus()
     }
@@ -330,7 +367,21 @@ class BlueskyVideoView(
     private fun unmute() {
         BlueskyVideoModule.audioFocusManager.requestAudioFocus()
         this.player?.volume = 1f
+        // Pause when headphones are unplugged rather than playing through the speaker. Muted
+        // videos keep playing, since they make no sound either way.
+        this.player?.setHandleAudioBecomingNoisy(true)
         this.isMuted = false
+    }
+
+    /**
+     * Another app took audio focus (a call, music, a navigation prompt), so stop playing sound
+     * over it, the same way AVPlayer pauses on an audio session interruption on iOS. Muted videos
+     * keep playing.
+     */
+    internal fun onAudioFocusLost() {
+        if (!this.isMuted && this.isPlaying) {
+            this.pause()
+        }
     }
 
     fun toggleMuted() {
@@ -450,9 +501,14 @@ class BlueskyVideoView(
 
     private fun createExoPlayer(): ExoPlayer =
         ExoPlayer
-            .Builder(context)
-            .apply {
+            .Builder(
+                context,
+                // Try another decoder (e.g. a software one) when the preferred one fails to
+                // initialize, which happens on devices that run out of hardware decoder instances.
+                DefaultRenderersFactory(context).setEnableDecoderFallback(true),
+            ).apply {
                 setLooper(context.mainLooper)
+                setLoadControl(createLoadControl())
                 // Make release() asynchronous, see destroy().
                 setReleaseTimeoutMs(0)
                 setSeekForwardIncrementMs(5000)
@@ -469,6 +525,7 @@ class BlueskyVideoView(
                             when (playbackState) {
                                 ExoPlayer.STATE_READY -> {
                                     val view = this@BlueskyVideoView
+                                    view.hasBecomeReady = true
                                     if (!view.isRecoveringFromBackground && (view.autoplay || view.ignoreAutoplay)) {
                                         view.isLoading = false
                                         view.play()
@@ -477,6 +534,22 @@ class BlueskyVideoView(
                                         }
                                     }
                                 }
+                            }
+                        }
+
+                        override fun onEvents(
+                            player: Player,
+                            events: Player.Events,
+                        ) {
+                            if (events.containsAny(
+                                    Player.EVENT_PLAYBACK_STATE_CHANGED,
+                                    Player.EVENT_PLAY_WHEN_READY_CHANGED,
+                                )
+                            ) {
+                                val view = this@BlueskyVideoView
+                                view.isBuffering = view.hasBecomeReady &&
+                                    player.playWhenReady &&
+                                    player.playbackState == Player.STATE_BUFFERING
                             }
                         }
 
@@ -512,6 +585,22 @@ class BlueskyVideoView(
                 )
             }
 
+    /**
+     * ExoPlayer's default buffers 50 s ahead, which downloads most of every video that becomes
+     * active in a feed. iOS stops at 5 s (`preferredForwardBufferDuration`), but adaptive track
+     * selection only switches to a higher quality with at least 10 s buffered, so keep a bit more
+     * than that.
+     */
+    private fun createLoadControl(): DefaultLoadControl =
+        DefaultLoadControl
+            .Builder()
+            .setBufferDurationsMs(
+                TARGET_BUFFER_MS,
+                TARGET_BUFFER_MS,
+                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+            ).build()
+
     private fun addProgressTracker() {
         // Remove any existing tracker first to prevent multiple timers
         this.removeProgressTracker()
@@ -544,5 +633,9 @@ class BlueskyVideoView(
     override fun requestLayout() {
         super.requestLayout()
         post(mLayoutRunnable)
+    }
+
+    private companion object {
+        const val TARGET_BUFFER_MS = 15_000
     }
 }
